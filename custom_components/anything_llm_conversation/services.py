@@ -12,7 +12,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_BASE_URL,
-    CONF_CHAT_MODEL,
+    CONF_WORKSPACE_SLUG,
     DEFAULT_CONF_BASE_URL,
     DOMAIN,
 )
@@ -27,7 +27,7 @@ CHANGE_CONFIG_SCHEMA = vol.Schema(
         ),
         vol.Optional(CONF_API_KEY): cv.string,
         vol.Optional(CONF_BASE_URL): cv.string,
-        vol.Optional(CONF_CHAT_MODEL): cv.string,
+        vol.Optional(CONF_WORKSPACE_SLUG): cv.string,
     }
 )
 
@@ -69,7 +69,7 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
             hass=hass,
             api_key=new_data[CONF_API_KEY],
             base_url=new_data.get(CONF_BASE_URL, DEFAULT_CONF_BASE_URL),
-            workspace_slug=new_data.get(CONF_CHAT_MODEL, "default"),
+            workspace_slug=new_data.get(CONF_WORKSPACE_SLUG, "default"),
         )
 
         hass.config_entries.async_update_entry(entry, data=new_data)

@@ -33,14 +33,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import AnythingLLMConfigEntry
 from .const import (
     CONF_ATTACH_USERNAME,
-    CONF_CHAT_MODEL,
+    CONF_WORKSPACE_SLUG,
     CONF_MAX_TOKENS,
     CONF_PROMPT,
     CONF_TEMPERATURE,
     CONF_THREAD_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
     DEFAULT_ATTACH_USERNAME,
-    DEFAULT_CHAT_MODEL,
+    DEFAULT_WORKSPACE_SLUG,
     DEFAULT_MAX_TOKENS,
     DEFAULT_PROMPT,
     DEFAULT_TEMPERATURE,
@@ -127,7 +127,7 @@ class AnythingLLMAgentEntity(
             identifiers={(DOMAIN, subentry.subentry_id)},
             name=subentry.title,
             manufacturer="AnythingLLM",
-            model=self.options.get(CONF_CHAT_MODEL, DEFAULT_CHAT_MODEL),
+            model=self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG),
             entry_type=dr.DeviceEntryType.SERVICE,
         )
         self.client = entry.runtime_data
@@ -361,7 +361,7 @@ class AnythingLLMAgentEntity(
         messages: list[dict],
     ) -> AnythingLLMQueryResponse:
         """Process a sentence."""
-        workspace_slug = self.options.get(CONF_CHAT_MODEL, DEFAULT_CHAT_MODEL)
+        workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
         max_tokens = self.options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
         thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)

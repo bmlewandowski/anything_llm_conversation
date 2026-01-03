@@ -10,7 +10,7 @@ DEFAULT_CONF_BASE_URL = "http://localhost:3001/api"
 # Failover configuration
 CONF_FAILOVER_BASE_URL = "failover_base_url"
 CONF_FAILOVER_API_KEY = "failover_api_key"
-CONF_FAILOVER_CHAT_MODEL = "failover_chat_model"
+CONF_FAILOVER_WORKSPACE_SLUG = "failover_workspace_slug"
 
 # Timeout configuration (in seconds)
 DEFAULT_HEALTH_CHECK_TIMEOUT = 3.0  # Quick health check for endpoint availability
@@ -34,8 +34,8 @@ entity_id,name,state,aliases
 
 The current state of devices is provided in available devices.
 """
-CONF_CHAT_MODEL = "chat_model"
-DEFAULT_CHAT_MODEL = "default-workspace"
+CONF_WORKSPACE_SLUG = "workspace_slug"
+DEFAULT_WORKSPACE_SLUG = "default-workspace"
 CONF_MAX_TOKENS = "max_tokens"
 DEFAULT_MAX_TOKENS = 150
 CONF_TEMPERATURE = "temperature"

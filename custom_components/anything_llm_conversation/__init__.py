@@ -17,10 +17,10 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_BASE_URL,
-    CONF_CHAT_MODEL,
+    CONF_WORKSPACE_SLUG,
     CONF_FAILOVER_BASE_URL,
     CONF_FAILOVER_API_KEY,
-    CONF_FAILOVER_CHAT_MODEL,
+    CONF_FAILOVER_WORKSPACE_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
     DOMAIN,
 )
@@ -52,10 +52,10 @@ async def async_setup_entry(
             hass=hass,
             api_key=entry.data[CONF_API_KEY],
             base_url=entry.data.get(CONF_BASE_URL),
-            workspace_slug=entry.data.get(CONF_CHAT_MODEL),
+            workspace_slug=entry.data.get(CONF_WORKSPACE_SLUG),
             failover_api_key=entry.data.get(CONF_FAILOVER_API_KEY),
             failover_base_url=entry.data.get(CONF_FAILOVER_BASE_URL),
-            failover_workspace_slug=entry.data.get(CONF_FAILOVER_CHAT_MODEL),
+            failover_workspace_slug=entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG),
             failover_thread_slug=entry.options.get(CONF_FAILOVER_THREAD_SLUG),
         )
     except Exception as err:

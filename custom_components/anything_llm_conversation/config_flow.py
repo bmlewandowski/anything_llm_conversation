@@ -32,7 +32,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_BASE_URL,
-    CONF_CHAT_MODEL,
+    CONF_WORKSPACE_SLUG,
     CONF_MAX_TOKENS,
     CONF_PROMPT,
     CONF_TEMPERATURE,
@@ -40,10 +40,10 @@ from .const import (
     CONF_THREAD_SLUG,
     CONF_FAILOVER_BASE_URL,
     CONF_FAILOVER_API_KEY,
-    CONF_FAILOVER_CHAT_MODEL,
+    CONF_FAILOVER_WORKSPACE_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
     DEFAULT_ATTACH_USERNAME,
-    DEFAULT_CHAT_MODEL,
+    DEFAULT_WORKSPACE_SLUG,
     DEFAULT_CONF_BASE_URL,
     DEFAULT_CONVERSATION_NAME,
     DEFAULT_MAX_TOKENS,
@@ -63,17 +63,17 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_NAME, default="AnythingLLM"): str,
         vol.Required(CONF_API_KEY): str,
         vol.Optional(CONF_BASE_URL, default=DEFAULT_CONF_BASE_URL): str,
-        vol.Optional(CONF_CHAT_MODEL, default=DEFAULT_CHAT_MODEL, description="AnythingLLM Workspace Slug"): str,
+        vol.Optional(CONF_WORKSPACE_SLUG, default=DEFAULT_WORKSPACE_SLUG, description="AnythingLLM Workspace Slug"): str,
         vol.Optional(CONF_FAILOVER_API_KEY, description="Failover API Key"): str,
         vol.Optional(CONF_FAILOVER_BASE_URL, description="Failover Base URL"): str,
-        vol.Optional(CONF_FAILOVER_CHAT_MODEL, description="Failover Workspace Slug"): str,
+        vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, description="Failover Workspace Slug"): str,
     }
 )
 
 DEFAULT_OPTIONS = types.MappingProxyType(
     {
         CONF_PROMPT: DEFAULT_PROMPT,
-        CONF_CHAT_MODEL: DEFAULT_CHAT_MODEL,
+        CONF_WORKSPACE_SLUG: DEFAULT_WORKSPACE_SLUG,
         CONF_MAX_TOKENS: DEFAULT_MAX_TOKENS,
         CONF_TEMPERATURE: DEFAULT_TEMPERATURE,
         CONF_ATTACH_USERNAME: DEFAULT_ATTACH_USERNAME,
@@ -90,10 +90,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """
     api_key = data[CONF_API_KEY]
     base_url = data.get(CONF_BASE_URL, DEFAULT_CONF_BASE_URL)
-    workspace_slug = data.get(CONF_CHAT_MODEL, DEFAULT_CHAT_MODEL)
+    workspace_slug = data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
     failover_api_key = data.get(CONF_FAILOVER_API_KEY)
     failover_base_url = data.get(CONF_FAILOVER_BASE_URL)
-    failover_workspace_slug = data.get(CONF_FAILOVER_CHAT_MODEL)
+    failover_workspace_slug = data.get(CONF_FAILOVER_WORKSPACE_SLUG)
 
     await get_anythingllm_client(
         hass=hass,
@@ -143,6 +143,58 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration of the integration."""
+        entry = self._get_reconfigure_entry()
+        
+        if user_input is not None:
+            errors = {}
+            try:
+                await validate_input(self.hass, user_input)
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception: %s", err)
+                errors["base"] = "cannot_connect"
+            else:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data=user_input,
+                )
+            
+            # Show form again with errors
+            reconfigure_schema = vol.Schema(
+                {
+                    vol.Required(CONF_API_KEY, default=user_input.get(CONF_API_KEY)): str,
+                    vol.Optional(CONF_BASE_URL, default=user_input.get(CONF_BASE_URL, DEFAULT_CONF_BASE_URL)): str,
+                    vol.Optional(CONF_WORKSPACE_SLUG, default=user_input.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)): str,
+                    vol.Optional(CONF_FAILOVER_API_KEY, default=user_input.get(CONF_FAILOVER_API_KEY, "")): str,
+                    vol.Optional(CONF_FAILOVER_BASE_URL, default=user_input.get(CONF_FAILOVER_BASE_URL, "")): str,
+                    vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, default=user_input.get(CONF_FAILOVER_WORKSPACE_SLUG, "")): str,
+                }
+            )
+            return self.async_show_form(
+                step_id="reconfigure",
+                data_schema=reconfigure_schema,
+                errors=errors,
+            )
+        
+        # Initial display - populate with current values
+        reconfigure_schema = vol.Schema(
+            {
+                vol.Required(CONF_API_KEY, default=entry.data.get(CONF_API_KEY)): str,
+                vol.Optional(CONF_BASE_URL, default=entry.data.get(CONF_BASE_URL, DEFAULT_CONF_BASE_URL)): str,
+                vol.Optional(CONF_WORKSPACE_SLUG, default=entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)): str,
+                vol.Optional(CONF_FAILOVER_API_KEY, default=entry.data.get(CONF_FAILOVER_API_KEY, "")): str,
+                vol.Optional(CONF_FAILOVER_BASE_URL, default=entry.data.get(CONF_FAILOVER_BASE_URL, "")): str,
+                vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, default=entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, "")): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=reconfigure_schema,
         )
 
     @classmethod
@@ -223,9 +275,9 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 default=DEFAULT_PROMPT,
             ): TemplateSelector(),
             vol.Optional(
-                CONF_CHAT_MODEL,
-                description={"suggested_value": options.get(CONF_CHAT_MODEL)},
-                default=DEFAULT_CHAT_MODEL,
+                CONF_WORKSPACE_SLUG,
+                description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
+                default=DEFAULT_WORKSPACE_SLUG,
             ): str,
             vol.Optional(
                 CONF_MAX_TOKENS,

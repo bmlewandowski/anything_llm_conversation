@@ -9,6 +9,7 @@
     "conversation"
   ],
   "documentation": "https://github.com/bmlewandowski/anything_llm_conversation",
+  "icon": "mdi-message-processing",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/bmlewandowski/anything_llm_conversation/issues",
