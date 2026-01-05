@@ -83,6 +83,7 @@ class AnythingLLMClient:
         max_tokens: int = 150,
         thread_slug: str | None = None,
         failover_thread_slug: str | None = None,
+        failover_workspace_slug: str | None = None,
     ) -> dict:
         """Send chat completion request to AnythingLLM."""
         base_url, api_key, workspace_slug = await self.get_active_endpoint()
@@ -91,10 +92,16 @@ class AnythingLLMClient:
         if failover_thread_slug is not None:
             self.failover_thread_slug = failover_thread_slug
         
-        # Determine which thread slug to use based on active endpoint
-        # When using failover, use failover_thread_slug if set, otherwise use workspace default (None)
-        # When using primary, use thread_slug
+        # Update failover_workspace_slug if provided (allows per-agent override)
+        if failover_workspace_slug is not None:
+            active_failover_workspace = failover_workspace_slug
+        else:
+            active_failover_workspace = self.failover_workspace_slug
+        
+        # Determine which workspace and thread slug to use based on active endpoint
         if self.using_failover:
+            # Use the per-agent failover workspace override if set, otherwise use the configured failover workspace
+            workspace_slug = active_failover_workspace or self.failover_workspace_slug or self.workspace_slug
             active_thread_slug = self.failover_thread_slug
         else:
             active_thread_slug = thread_slug

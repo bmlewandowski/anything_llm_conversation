@@ -67,6 +67,7 @@ After adding the integration, you can configure each conversation agent with the
 - **Attach Username**: Prepends the Home Assistant username to each message
 - **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint
 - **Failover Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the failover endpoint
+- **Failover Workspace Slug**: Optional workspace slug override for the failover endpoint (defaults to integration's failover workspace if not set)
 - **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
 - **Agent Keywords**: Comma-separated keywords that trigger the `@agent` prefix (e.g., "search, lookup, find online")
 
@@ -159,9 +160,9 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
   - Attach Username
   - Thread Slug
   - Failover Thread Slug
+  - Failover Workspace Slug (agent-specific override)
   - Enable Agent Prefix
   - Agent Keywords
-  - Failover Thread Slug
 
 
 ## Setting Up Voice Assistant
