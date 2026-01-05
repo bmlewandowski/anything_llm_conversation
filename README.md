@@ -7,22 +7,23 @@ This is a custom component for Home Assistant that integrates with AnythingLLM t
 ## Overview
 
 
-AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent in Home Assistant's voice assistant pipeline. This integration leverages AnythingLLM's workspace feature to access your custom knowledge base and provide context-aware responses.
+AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent in Home Assistant's voice assistant pipeline. This integration leverages AnythingLLM's workspace feature to access your custom knowledge base, enable agents, and provide context-aware responses.
 
 
 ## Key Features
 
-
-- **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
-- **Endpoint Failover**: Automatically fails over to a backup AnythingLLM server if the primary endpoint becomes unavailable
 - **Voice Assistant Integration**: Seamlessly integrates with Home Assistant's voice assistant pipeline
-- **Workspace-Based Context**: Uses AnythingLLM workspace slugs to ensure proper RAG context for your queries
+- **Endpoint Failover**: Automatically fails over to a backup AnythingLLM server if the primary endpoint becomes unavailable
+- **Workspace-Based Context**: Uses AnythingLLM workspace and threads to ensure proper context for your queries
+- **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
+- **Enable Agents**: Utilizes AnythingLLM workspaces to use agents to perform web searches, scrape websites, connect to SQL, etc.
+- **Use MCP Servers**: Enables MCP Servers through AnythingLLM workspaces to expose additional api based tools
 
 
 ## How It Works
 
 
-This integration connects to AnythingLLM via its API endpoint and uses workspace slugs to route requests to the appropriate RAG-enabled workspace. The workspace slug you configure determines which AnythingLLM workspace your voice commands will interact with, ensuring access to the relevant knowledge base.
+This integration connects to AnythingLLM via its API endpoint and uses workspace slugs to route requests to the appropriate workspace. The workspace slug you configure determines which AnythingLLM workspace your voice commands will interact with, ensuring access to the relevant knowledge base. Optional STT sanitizing toggles clean up responses before they complete voice pipeline, and keyword-enabled agent activation allows you to use features like web search and scraping through your workspace.
 
 
 ## Installation
