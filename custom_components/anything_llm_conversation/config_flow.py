@@ -228,7 +228,14 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Add a subentry."""
+        # Start with default options and inherit workspace slugs from integration
         self.options = dict(DEFAULT_OPTIONS)
+        entry = self._get_entry()
+        # Inherit workspace slugs from integration settings
+        if CONF_WORKSPACE_SLUG in entry.data:
+            self.options[CONF_WORKSPACE_SLUG] = entry.data[CONF_WORKSPACE_SLUG]
+        if CONF_FAILOVER_WORKSPACE_SLUG in entry.data:
+            self.options[CONF_FAILOVER_WORKSPACE_SLUG] = entry.data[CONF_FAILOVER_WORKSPACE_SLUG]
         return await self.async_step_init()
 
     async def async_step_reconfigure(
@@ -282,11 +289,6 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 description={"suggested_value": options.get(CONF_PROMPT)},
                 default=DEFAULT_PROMPT,
             ): TemplateSelector(),
-            vol.Optional(
-                CONF_WORKSPACE_SLUG,
-                description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
-                default=DEFAULT_WORKSPACE_SLUG,
-            ): str,
             vol.Optional(
                 CONF_MAX_TOKENS,
                 description={"suggested_value": options.get(CONF_MAX_TOKENS)},
