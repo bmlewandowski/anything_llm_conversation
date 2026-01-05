@@ -39,7 +39,7 @@ from .const import (
     CONF_TEMPERATURE,
     CONF_THREAD_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
-    CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
+    CONF_FAILOVER_WORKSPACE_SLUG_AGENT,
     CONF_ENABLE_AGENT_PREFIX,
     CONF_AGENT_KEYWORDS,
     DEFAULT_ATTACH_USERNAME,
@@ -49,7 +49,7 @@ from .const import (
     DEFAULT_TEMPERATURE,
     DEFAULT_THREAD_SLUG,
     DEFAULT_FAILOVER_THREAD_SLUG,
-    DEFAULT_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
+    DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT,
     DEFAULT_ENABLE_AGENT_PREFIX,
     DEFAULT_AGENT_KEYWORDS,
     DOMAIN,
@@ -390,7 +390,7 @@ class AnythingLLMAgentEntity(
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
         thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
         failover_thread_slug = self.options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG)
-        failover_workspace_slug = self.options.get(CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE, DEFAULT_FAILOVER_WORKSPACE_SLUG_OVERRIDE)
+        failover_workspace_slug = self.options.get(CONF_FAILOVER_WORKSPACE_SLUG_AGENT, DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT)
 
         _LOGGER.debug("Sending request to AnythingLLM workspace %s with %d messages", workspace_slug, len(messages))
 

@@ -42,7 +42,7 @@ from .const import (
     CONF_FAILOVER_API_KEY,
     CONF_FAILOVER_WORKSPACE_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
-    CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
+    CONF_FAILOVER_WORKSPACE_SLUG_AGENT,
     CONF_ENABLE_AGENT_PREFIX,
     CONF_AGENT_KEYWORDS,
     DEFAULT_ATTACH_USERNAME,
@@ -55,7 +55,7 @@ from .const import (
     DEFAULT_TEMPERATURE,
     DEFAULT_THREAD_SLUG,
     DEFAULT_FAILOVER_THREAD_SLUG,
-    DEFAULT_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
+    DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT,
     DEFAULT_ENABLE_AGENT_PREFIX,
     DEFAULT_AGENT_KEYWORDS,
     DOMAIN,
@@ -85,7 +85,7 @@ DEFAULT_OPTIONS = types.MappingProxyType(
         CONF_ATTACH_USERNAME: DEFAULT_ATTACH_USERNAME,
         CONF_THREAD_SLUG: DEFAULT_THREAD_SLUG,
         CONF_FAILOVER_THREAD_SLUG: DEFAULT_FAILOVER_THREAD_SLUG,
-        CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE: DEFAULT_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
+        CONF_FAILOVER_WORKSPACE_SLUG_AGENT: DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT,
         CONF_ENABLE_AGENT_PREFIX: DEFAULT_ENABLE_AGENT_PREFIX,
         CONF_AGENT_KEYWORDS: DEFAULT_AGENT_KEYWORDS,
     }
@@ -304,19 +304,24 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 default=DEFAULT_ATTACH_USERNAME,
             ): BooleanSelector(),
             vol.Optional(
+                CONF_WORKSPACE_SLUG,
+                description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
+                default=DEFAULT_WORKSPACE_SLUG,
+            ): str,
+            vol.Optional(
                 CONF_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_THREAD_SLUG)},
                 default=DEFAULT_THREAD_SLUG,
             ): str,
             vol.Optional(
+                CONF_FAILOVER_WORKSPACE_SLUG_AGENT,
+                description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG_AGENT)},
+                default=DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT,
+            ): str,
+            vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_THREAD_SLUG)},
                 default=DEFAULT_FAILOVER_THREAD_SLUG,
-            ): str,
-            vol.Optional(
-                CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
-                description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG_OVERRIDE)},
-                default=DEFAULT_FAILOVER_WORKSPACE_SLUG_OVERRIDE,
             ): str,
             vol.Optional(
                 CONF_ENABLE_AGENT_PREFIX,

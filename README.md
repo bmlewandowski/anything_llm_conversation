@@ -61,13 +61,13 @@ After adding the integration, you can configure each conversation agent with the
 
 
 - **Prompt Template**: Customize the system prompt for the conversation agent
-- **Workspace Slug**: The workspace slug to use (defaults to the main integration's workspace)
 - **Maximum Tokens**: Maximum number of tokens in the response
 - **Temperature**: Controls randomness in responses (0.0 = deterministic, 1.0 = creative)
 - **Attach Username**: Prepends the Home Assistant username to each message
+- **Workspace Slug**: The workspace slug to use (defaults to the main integration's workspace)
 - **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint
+- **Failover Workspace Slug**: Optional workspace slug for the failover endpoint (defaults to integration's failover workspace if not set)
 - **Failover Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the failover endpoint
-- **Failover Workspace Slug**: Optional workspace slug override for the failover endpoint (defaults to integration's failover workspace if not set)
 - **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
 - **Agent Keywords**: Comma-separated keywords that trigger the `@agent` prefix (e.g., "search, lookup, find online")
 
@@ -154,13 +154,13 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
 2. Click **Configure** on the specific conversation agent you want to modify
 3. Update any of the following:
   - Prompt Template
-  - Workspace Slug (agent-specific override)
   - Maximum Tokens
   - Temperature
   - Attach Username
+  - Workspace Slug
   - Thread Slug
+  - Failover Workspace Slug
   - Failover Thread Slug
-  - Failover Workspace Slug (agent-specific override)
   - Enable Agent Prefix
   - Agent Keywords
 
