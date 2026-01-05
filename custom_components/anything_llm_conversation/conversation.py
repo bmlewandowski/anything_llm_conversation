@@ -39,6 +39,8 @@ from .const import (
     CONF_TEMPERATURE,
     CONF_THREAD_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
+    CONF_ENABLE_AGENT_PREFIX,
+    CONF_AGENT_KEYWORDS,
     DEFAULT_ATTACH_USERNAME,
     DEFAULT_WORKSPACE_SLUG,
     DEFAULT_MAX_TOKENS,
@@ -46,6 +48,8 @@ from .const import (
     DEFAULT_TEMPERATURE,
     DEFAULT_THREAD_SLUG,
     DEFAULT_FAILOVER_THREAD_SLUG,
+    DEFAULT_ENABLE_AGENT_PREFIX,
+    DEFAULT_AGENT_KEYWORDS,
     DOMAIN,
     EVENT_CONVERSATION_FINISHED,
 )
@@ -173,7 +177,14 @@ class AnythingLLMAgentEntity(
                     response=intent_response, conversation_id=conversation_id
                 )
             messages = [system_message]
-        user_message = {"role": "user", "content": user_input.text}
+        
+        # Add @agent prefix if enabled and keywords detected
+        user_content = user_input.text
+        if self._should_use_agent_prefix(user_content):
+            user_content = f"@agent {user_content}"
+            _LOGGER.debug("Added @agent prefix to message: %s", user_content)
+        
+        user_message = {"role": "user", "content": user_content}
         if self.options.get(CONF_ATTACH_USERNAME, DEFAULT_ATTACH_USERNAME):
             user = user_input.context.user_id
             if user is not None:
@@ -224,6 +235,17 @@ class AnythingLLMAgentEntity(
             conversation_id=conversation_id,
             continue_conversation=should_continue,
         )
+
+    def _should_use_agent_prefix(self, user_text: str) -> bool:
+        """Determine if @agent prefix should be added based on keywords."""
+        if not self.options.get(CONF_ENABLE_AGENT_PREFIX, DEFAULT_ENABLE_AGENT_PREFIX):
+            return False
+        
+        keywords_str = self.options.get(CONF_AGENT_KEYWORDS, DEFAULT_AGENT_KEYWORDS)
+        keywords = [kw.strip().lower() for kw in keywords_str.split(",")]
+        user_text_lower = user_text.lower()
+        
+        return any(keyword in user_text_lower for keyword in keywords if keyword)
 
     def _generate_system_message(
         self, exposed_entities, user_input: conversation.ConversationInput

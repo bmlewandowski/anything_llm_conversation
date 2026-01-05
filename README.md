@@ -67,6 +67,24 @@ After adding the integration, you can configure each conversation agent with the
 - **Attach Username**: Prepends the Home Assistant username to each message
 - **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint
 - **Failover Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the failover endpoint
+- **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
+- **Agent Keywords**: Comma-separated keywords that trigger the `@agent` prefix (e.g., "search, lookup, find online")
+
+
+### Agent Prefix for Web Searches
+
+AnythingLLM supports the `@agent` prefix to trigger web searches and scraping capabilities. This integration can automatically add this prefix to user messages based on keyword detection:
+
+1. **Enable the feature**: Turn on "Enable Agent Prefix" in the conversation agent configuration
+2. **Configure keywords**: Customize the "Agent Keywords" field with comma-separated trigger words
+3. **Default keywords**: "search, lookup, find online, web search, google, browse, check online, look up"
+
+When enabled, any message containing one of the keywords will automatically have `@agent` prepended before being sent to AnythingLLM.
+
+**Example:**
+- User says: "search for the weather in Paris"
+- Sent to AnythingLLM: "@agent search for the weather in Paris"
+- AnythingLLM uses its web search agent to find current information
 
 
 ### Thread/Session Support
@@ -140,6 +158,9 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
   - Temperature
   - Attach Username
   - Thread Slug
+  - Failover Thread Slug
+  - Enable Agent Prefix
+  - Agent Keywords
   - Failover Thread Slug
 
 

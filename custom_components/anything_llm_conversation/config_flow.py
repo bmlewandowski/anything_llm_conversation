@@ -42,6 +42,8 @@ from .const import (
     CONF_FAILOVER_API_KEY,
     CONF_FAILOVER_WORKSPACE_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
+    CONF_ENABLE_AGENT_PREFIX,
+    CONF_AGENT_KEYWORDS,
     DEFAULT_ATTACH_USERNAME,
     DEFAULT_WORKSPACE_SLUG,
     DEFAULT_CONF_BASE_URL,
@@ -52,6 +54,8 @@ from .const import (
     DEFAULT_TEMPERATURE,
     DEFAULT_THREAD_SLUG,
     DEFAULT_FAILOVER_THREAD_SLUG,
+    DEFAULT_ENABLE_AGENT_PREFIX,
+    DEFAULT_AGENT_KEYWORDS,
     DOMAIN,
 )
 from .helpers import get_anythingllm_client
@@ -79,6 +83,8 @@ DEFAULT_OPTIONS = types.MappingProxyType(
         CONF_ATTACH_USERNAME: DEFAULT_ATTACH_USERNAME,
         CONF_THREAD_SLUG: DEFAULT_THREAD_SLUG,
         CONF_FAILOVER_THREAD_SLUG: DEFAULT_FAILOVER_THREAD_SLUG,
+        CONF_ENABLE_AGENT_PREFIX: DEFAULT_ENABLE_AGENT_PREFIX,
+        CONF_AGENT_KEYWORDS: DEFAULT_AGENT_KEYWORDS,
     }
 )
 
@@ -303,5 +309,15 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 CONF_FAILOVER_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_THREAD_SLUG)},
                 default=DEFAULT_FAILOVER_THREAD_SLUG,
+            ): str,
+            vol.Optional(
+                CONF_ENABLE_AGENT_PREFIX,
+                description={"suggested_value": options.get(CONF_ENABLE_AGENT_PREFIX)},
+                default=DEFAULT_ENABLE_AGENT_PREFIX,
+            ): BooleanSelector(),
+            vol.Optional(
+                CONF_AGENT_KEYWORDS,
+                description={"suggested_value": options.get(CONF_AGENT_KEYWORDS)},
+                default=DEFAULT_AGENT_KEYWORDS,
             ): str,
         }
