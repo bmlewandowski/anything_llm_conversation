@@ -307,7 +307,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
-                default=DEFAULT_WORKSPACE_SLUG,
+                default=options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG),
             ): str,
             vol.Optional(
                 CONF_THREAD_SLUG,
@@ -317,7 +317,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_FAILOVER_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG)},
-                default=DEFAULT_FAILOVER_WORKSPACE_SLUG,
+                default=options.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG),
             ): str,
             vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
