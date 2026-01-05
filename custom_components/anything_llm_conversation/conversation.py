@@ -377,6 +377,10 @@ class AnythingLLMAgentEntity(
         text = _RE_CELSIUS.sub(r'\1 degrees Celsius', text)  # 25C -> 25 degrees Celsius
         text = _RE_FAHRENHEIT.sub(r'\1 degrees Fahrenheit', text)  # 77F -> 77 degrees Fahrenheit
         
+        # Clean up stray leading punctuation that may remain after tag removal
+        text = text.strip()
+        text = text.lstrip('.,;:!?-')  # Remove leading punctuation
+        
         return text.strip()
 
     async def query(
