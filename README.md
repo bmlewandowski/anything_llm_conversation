@@ -65,8 +65,8 @@ After adding the integration, you can configure each conversation agent with the
 - **Maximum Tokens**: Maximum number of tokens in the response
 - **Temperature**: Controls randomness in responses (0.0 = deterministic, 1.0 = creative)
 - **Attach Username**: Prepends the Home Assistant username to each message
-- **Workspace Slug**: The workspace slug to use (defaults to the main integration's workspace)
-- **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint
+- **Workspace Slug**: The workspace slug to use (defaults to the main integration's workspace) - workspace name lowercased and seperated by dashes
+- **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint - right click on thread and select copy link, paste into notepad and get thread slug from url
 - **Failover Workspace Slug**: Optional workspace slug for the failover endpoint (defaults to integration's failover workspace if not set)
 - **Failover Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the failover endpoint
 - **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
