@@ -118,6 +118,24 @@ By default (when thread slugs are left blank), AnythingLLM uses the workspace's 
 You can change or clear thread slugs at any time to switch between threads or return to the default workspace thread.
 
 
+### Adding Home Assistant Automation Custom Skill in AnythingLLM
+
+1. Go to Community Hub on side menu
+2. Import Home Assistant Automation
+3. Click Agent Skills
+4. Enter Home Assistant URL in homeAssistantUrl field
+5. Enter API Key (officially called a Long-Lived Access Token) in homeAssistantApiKey field
+
+**Steps to Generate Long-Lived Access Token**
+1. Log in to your Home Assistant instance using a web browser with an administrator account.
+2. Navigate to your Profile by clicking your user icon (or picture) in the bottom-left corner of the sidebar.
+3. Go to the Security tab within your profile settings.
+4. Scroll down to the Long-Lived Access Tokens section.
+5. Click the "+ Create Token" button.
+6. Enter a name for the token (e.g., "Automation Script" or "Hass Agent") to help you remember its purpose, and click Create.
+7. Copy the generated token string immediately. For security reasons, you will not be able to view this token again after you close the window. 
+
+
 ## Reconfiguring the Integration
 
 
