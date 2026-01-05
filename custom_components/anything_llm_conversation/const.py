@@ -10,9 +10,7 @@ DEFAULT_CONF_BASE_URL = "http://localhost:3001/api"
 # Failover configuration
 CONF_FAILOVER_BASE_URL = "failover_base_url"
 CONF_FAILOVER_API_KEY = "failover_api_key"
-CONF_FAILOVER_WORKSPACE_SLUG = "failover_workspace_slug"  # Integration-level failover workspace
-CONF_FAILOVER_WORKSPACE_SLUG_AGENT = "failover_workspace_slug_agent"  # Per-agent override
-DEFAULT_FAILOVER_WORKSPACE_SLUG_AGENT = ""
+CONF_FAILOVER_WORKSPACE_SLUG = "failover_workspace_slug"
 
 # Timeout configuration (in seconds)
 DEFAULT_HEALTH_CHECK_TIMEOUT = 3.0  # Quick health check for endpoint availability
@@ -48,6 +46,7 @@ CONF_THREAD_SLUG = "thread_slug"
 DEFAULT_THREAD_SLUG = ""
 CONF_FAILOVER_THREAD_SLUG = "failover_thread_slug"
 DEFAULT_FAILOVER_THREAD_SLUG = ""
+DEFAULT_FAILOVER_WORKSPACE_SLUG = ""  # Default for per-agent override
 CONF_ENABLE_AGENT_PREFIX = "enable_agent_prefix"
 DEFAULT_ENABLE_AGENT_PREFIX = False
 CONF_AGENT_KEYWORDS = "agent_keywords"
