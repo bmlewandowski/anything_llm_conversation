@@ -58,7 +58,7 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
         new_data = entry.data.copy()
         new_data.update(updates)
 
-        _LOGGER.debug("Updating config entry %s with %s", entry_id, new_data)
+        _LOGGER.debug("Updating config entry %s", entry_id)
 
         base_url = new_data.get(CONF_BASE_URL)
         if base_url == DEFAULT_CONF_BASE_URL:
