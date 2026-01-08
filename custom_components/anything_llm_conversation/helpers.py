@@ -7,9 +7,46 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.httpx_client import get_async_client
 
-from .const import DEFAULT_HEALTH_CHECK_TIMEOUT, DEFAULT_CHAT_TIMEOUT
+from .const import (
+    DEFAULT_HEALTH_CHECK_TIMEOUT,
+    DEFAULT_CHAT_TIMEOUT,
+    MODE_KEYWORDS,
+    MODE_QUERY_KEYWORDS,
+    PROMPT_MODES,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def detect_mode_switch(user_input: str) -> str | None:
+    """Detect if user input contains mode switch keywords.
+    
+    Returns the mode key (e.g., 'analysis', 'research') if detected, None otherwise.
+    """
+    input_lower = user_input.lower().strip()
+    
+    # Check each mode's keywords
+    for mode_key, keywords in MODE_KEYWORDS.items():
+        if any(keyword in input_lower for keyword in keywords):
+            return mode_key
+    
+    return None
+
+
+def is_mode_query(user_input: str) -> bool:
+    """Check if user is asking about the current mode."""
+    input_lower = user_input.lower().strip()
+    return any(keyword in input_lower for keyword in MODE_QUERY_KEYWORDS)
+
+
+def get_mode_name(mode_key: str) -> str:
+    """Get the display name for a mode key."""
+    return PROMPT_MODES.get(mode_key, {}).get("name", "Unknown Mode")
+
+
+def get_mode_prompt(mode_key: str) -> str:
+    """Get the system prompt for a mode key."""
+    return PROMPT_MODES.get(mode_key, PROMPT_MODES["default"]).get("system_prompt", "")
 
 
 class AnythingLLMClient:

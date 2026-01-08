@@ -13,6 +13,7 @@ AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent
 ## Key Features
 
 - **Voice Assistant Integration**: Seamlessly integrates with Home Assistant's voice assistant pipeline
+- **Voice-Triggered Mode Switching**: Switch between specialized AI modes (Analysis, Research, Code Review, Troubleshooting, Guest) using voice commands
 - **Endpoint Failover**: Automatically fails over to a backup AnythingLLM server if the primary endpoint becomes unavailable
 - **Workspace-Based Context**: Uses AnythingLLM workspace and threads to ensure proper context for your queries
 - **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
@@ -24,6 +25,30 @@ AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent
 
 
 This integration connects to AnythingLLM via its API endpoint and uses workspace slugs to route requests to the appropriate workspace. The workspace slug you configure determines which AnythingLLM workspace your voice commands will interact with, ensuring access to the relevant knowledge base. Optional STT sanitizing toggles clean up responses before they complete voice pipeline, and keyword-enabled agent activation allows you to use features like web search and scraping through your workspace.
+
+
+## Features
+
+### Voice-Triggered Mode Switching
+
+Customize your AI assistant's behavior for different use cases by simply saying the mode name. Available modes:
+
+- **Default Mode** - Standard smart home management
+- **Analysis Mode** - Data analysis and pattern identification
+- **Research Mode** - In-depth explanations and comparisons
+- **Code Review Mode** - YAML and automation script review
+- **Troubleshooting Mode** - Step-by-step device diagnostics
+- **Guest Mode** - Simplified, privacy-conscious interface for visitors
+
+**Example:**
+```
+User: "Switch to analysis mode"
+Assistant: "Switching to Analysis Mode."
+User: "What's my energy usage pattern?"
+Assistant: [Provides detailed analytical response]
+```
+
+For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](MODE_SWITCHING.md).
 
 
 ## Installation

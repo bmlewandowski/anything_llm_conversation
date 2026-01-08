@@ -55,6 +55,12 @@ from .const import (
     DOMAIN,
     EVENT_CONVERSATION_FINISHED,
 )
+from .helpers import (
+    detect_mode_switch,
+    is_mode_query,
+    get_mode_name,
+    get_mode_prompt,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,6 +125,9 @@ class AnythingLLMAgentEntity(
         self.entry = entry
         self.subentry = subentry
         self.history: dict[str, list[dict]] = {}
+        
+        # Mode management - track mode per conversation
+        self.conversation_modes: dict[str, str] = {}  # conversation_id -> mode_key
 
         self.options = subentry.data
         self._attr_unique_id = subentry.subentry_id
@@ -157,16 +166,53 @@ class AnythingLLMAgentEntity(
         chat_log: ChatLog,
     ) -> ConversationResult:
         """Call the API."""
+        conversation_id = chat_log.conversation_id
+        
+        # Get current mode for this conversation (default to "default")
+        current_mode = self.conversation_modes.get(conversation_id, "default")
+        
+        # Check for mode query first
+        if is_mode_query(user_input.text):
+            mode_name = get_mode_name(current_mode)
+            _LOGGER.debug("Mode query detected, current mode: %s", mode_name)
+            
+            intent_response = intent.IntentResponse(language=user_input.language)
+            intent_response.async_set_speech(f"I'm currently in {mode_name}.")
+            
+            return conversation.ConversationResult(
+                response=intent_response, conversation_id=conversation_id
+            )
+        
+        # Check for mode switch
+        new_mode = detect_mode_switch(user_input.text)
+        if new_mode:
+            old_mode = current_mode
+            self.conversation_modes[conversation_id] = new_mode
+            mode_name = get_mode_name(new_mode)
+            
+            # Clear history and cache when switching modes
+            if conversation_id in self.history:
+                del self.history[conversation_id]
+            self._system_prompt_cache.clear()
+            
+            _LOGGER.info("Mode switched from %s to %s for conversation %s", old_mode, new_mode, conversation_id)
+            
+            intent_response = intent.IntentResponse(language=user_input.language)
+            intent_response.async_set_speech(f"Switching to {mode_name}.")
+            
+            return conversation.ConversationResult(
+                response=intent_response, conversation_id=conversation_id
+            )
+        
         exposed_entities = self.get_exposed_entities()
 
-        conversation_id = chat_log.conversation_id
         if conversation_id in self.history:
             messages = self.history[conversation_id]
         else:
             user_input.conversation_id = conversation_id
             try:
                 system_message = self._generate_system_message(
-                    exposed_entities, user_input
+                    exposed_entities, user_input, current_mode
                 )
             except TemplateError as err:
                 _LOGGER.error("Error rendering prompt: %s", err)
@@ -250,10 +296,14 @@ class AnythingLLMAgentEntity(
         return any(keyword in user_text_lower for keyword in keywords if keyword)
 
     def _generate_system_message(
-        self, exposed_entities, user_input: conversation.ConversationInput
+        self, exposed_entities, user_input: conversation.ConversationInput, mode_key: str = "default"
     ):
-        raw_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
-        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input)
+        # Use mode-specific prompt if available, otherwise fall back to user-configured prompt
+        raw_prompt = get_mode_prompt(mode_key)
+        if not raw_prompt:
+            raw_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
+        
+        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key)
         return {"role": "system", "content": prompt}
 
     def _async_generate_prompt(
@@ -261,6 +311,7 @@ class AnythingLLMAgentEntity(
         raw_prompt: str,
         exposed_entities,
         user_input: conversation.ConversationInput,
+        mode_key: str = "default",
     ) -> str:
         """Generate a prompt for the user."""
         # Check if prompt template changed - invalidate cache if so
@@ -269,8 +320,8 @@ class AnythingLLMAgentEntity(
             self._last_prompt_template = raw_prompt
             _LOGGER.debug("System prompt cache cleared due to template change")
         
-        # Use device_id as cache key (different devices might have different prompts)
-        cache_key = f"{user_input.device_id or 'default'}_{len(exposed_entities)}"
+        # Use device_id and mode as cache key
+        cache_key = f"{user_input.device_id or 'default'}_{len(exposed_entities)}_{mode_key}"
         
         # Return cached prompt if available
         if cache_key in self._system_prompt_cache:
