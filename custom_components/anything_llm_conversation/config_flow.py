@@ -142,7 +142,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 subentries=[
                     {
                         "subentry_type": "conversation",
-                        "data": dict(DEFAULT_OPTIONS),
+                        "data": (lambda opts: (
+                            opts.__setitem__(CONF_WORKSPACE_SLUG, user_input.get(CONF_WORKSPACE_SLUG, opts.get(CONF_WORKSPACE_SLUG))) or
+                            opts.__setitem__(CONF_FAILOVER_WORKSPACE_SLUG, user_input.get(CONF_FAILOVER_WORKSPACE_SLUG, opts.get(CONF_FAILOVER_WORKSPACE_SLUG))) or
+                            opts
+                        ))(dict(DEFAULT_OPTIONS)),
                         "title": DEFAULT_CONVERSATION_NAME,
                         "unique_id": None,
                     }
@@ -283,6 +287,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
 
     def anythingllm_config_option_schema(self, options: dict[str, Any]) -> dict:
         """Return a schema for AnythingLLM completion options."""
+        entry = self._get_entry()
         return {
             vol.Optional(
                 CONF_PROMPT,
@@ -307,7 +312,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
-                default=options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG),
+                default=options.get(CONF_WORKSPACE_SLUG, entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)),
             ): str,
             vol.Optional(
                 CONF_THREAD_SLUG,
@@ -317,7 +322,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_FAILOVER_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG)},
-                default=options.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG),
+                default=options.get(CONF_FAILOVER_WORKSPACE_SLUG, entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)),
             ): str,
             vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
