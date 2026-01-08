@@ -287,22 +287,22 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_PROMPT,
                 description={"suggested_value": options.get(CONF_PROMPT)},
-                default=DEFAULT_PROMPT,
+                default=options.get(CONF_PROMPT, DEFAULT_PROMPT),
             ): TemplateSelector(),
             vol.Optional(
                 CONF_MAX_TOKENS,
                 description={"suggested_value": options.get(CONF_MAX_TOKENS)},
-                default=DEFAULT_MAX_TOKENS,
+                default=options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS),
             ): int,
             vol.Optional(
                 CONF_TEMPERATURE,
                 description={"suggested_value": options.get(CONF_TEMPERATURE)},
-                default=DEFAULT_TEMPERATURE,
+                default=options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE),
             ): NumberSelector(NumberSelectorConfig(min=0, max=1, step=0.05)),
             vol.Optional(
                 CONF_ATTACH_USERNAME,
                 description={"suggested_value": options.get(CONF_ATTACH_USERNAME)},
-                default=DEFAULT_ATTACH_USERNAME,
+                default=options.get(CONF_ATTACH_USERNAME, DEFAULT_ATTACH_USERNAME),
             ): BooleanSelector(),
             vol.Optional(
                 CONF_WORKSPACE_SLUG,
@@ -312,7 +312,7 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_THREAD_SLUG)},
-                default=DEFAULT_THREAD_SLUG,
+                default=options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG),
             ): str,
             vol.Optional(
                 CONF_FAILOVER_WORKSPACE_SLUG,
@@ -322,16 +322,16 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_THREAD_SLUG)},
-                default=DEFAULT_FAILOVER_THREAD_SLUG,
+                default=options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG),
             ): str,
             vol.Optional(
                 CONF_ENABLE_AGENT_PREFIX,
                 description={"suggested_value": options.get(CONF_ENABLE_AGENT_PREFIX)},
-                default=DEFAULT_ENABLE_AGENT_PREFIX,
+                default=options.get(CONF_ENABLE_AGENT_PREFIX, DEFAULT_ENABLE_AGENT_PREFIX),
             ): BooleanSelector(),
             vol.Optional(
                 CONF_AGENT_KEYWORDS,
                 description={"suggested_value": options.get(CONF_AGENT_KEYWORDS)},
-                default=DEFAULT_AGENT_KEYWORDS,
+                default=options.get(CONF_AGENT_KEYWORDS, DEFAULT_AGENT_KEYWORDS),
             ): str,
         }

@@ -148,12 +148,13 @@ class AnythingLLMClient:
         messages: list[dict],
         temperature: float = 0.5,
         max_tokens: int = 150,
+        workspace_slug: str | None = None,
         thread_slug: str | None = None,
         failover_thread_slug: str | None = None,
         failover_workspace_slug: str | None = None,
     ) -> dict:
         """Send chat completion request to AnythingLLM."""
-        base_url, api_key, workspace_slug = await self.get_active_endpoint()
+        base_url, api_key, active_workspace_slug = await self.get_active_endpoint()
         
         # Update failover_thread_slug if provided (allows dynamic updates without client reload)
         if failover_thread_slug is not None:
@@ -168,16 +169,18 @@ class AnythingLLMClient:
         # Determine which workspace and thread slug to use based on active endpoint
         if self.using_failover:
             # Use the per-agent failover workspace override if set, otherwise use the configured failover workspace
-            workspace_slug = active_failover_workspace or self.failover_workspace_slug or self.workspace_slug
+            final_workspace_slug = active_failover_workspace or self.failover_workspace_slug or self.workspace_slug
             active_thread_slug = self.failover_thread_slug
         else:
+            # Use the provided workspace override if set, otherwise default to active workspace
+            final_workspace_slug = workspace_slug or active_workspace_slug or self.workspace_slug
             active_thread_slug = thread_slug
         
         # Construct AnythingLLM API endpoint - use thread slug in URL if provided
         if active_thread_slug:
-            chat_url = f"{base_url}/v1/workspace/{workspace_slug}/thread/{active_thread_slug}/chat"
+            chat_url = f"{base_url}/v1/workspace/{final_workspace_slug}/thread/{active_thread_slug}/chat"
         else:
-            chat_url = f"{base_url}/v1/workspace/{workspace_slug}/chat"
+            chat_url = f"{base_url}/v1/workspace/{final_workspace_slug}/chat"
         
         payload = {
             "message": messages[-1]["content"] if messages else "",

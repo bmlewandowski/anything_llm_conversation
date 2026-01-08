@@ -447,12 +447,17 @@ class AnythingLLMAgentEntity(
         messages: list[dict],
     ) -> AnythingLLMQueryResponse:
         """Process a sentence."""
-        workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+        # Prefer subentry options values; if default placeholders are present, fall back to main entry data
+        opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+        data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+        workspace_slug = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
         max_tokens = self.options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
         thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
         failover_thread_slug = self.options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG)
-        failover_workspace_slug = self.options.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)
+        opt_failover_workspace_slug = self.options.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)
+        data_failover_workspace_slug = self.entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)
+        failover_workspace_slug = opt_failover_workspace_slug or data_failover_workspace_slug
 
         _LOGGER.debug("Sending request to AnythingLLM workspace %s with %d messages", workspace_slug, len(messages))
 
@@ -462,6 +467,7 @@ class AnythingLLMAgentEntity(
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                workspace_slug=workspace_slug if workspace_slug else None,
                 thread_slug=thread_slug if thread_slug else None,
                 failover_thread_slug=failover_thread_slug if failover_thread_slug else None,
                 failover_workspace_slug=failover_workspace_slug if failover_workspace_slug else None,

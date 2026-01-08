@@ -97,6 +97,10 @@ After adding the integration, you can configure each conversation agent with the
 - **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
 - **Agent Keywords**: Comma-separated keywords that trigger the `@agent` prefix (e.g., "search, lookup, find online")
 
+### Options Precedence and Retention
+- Conversation agents read workspace/thread values from the agent options first; if unset, they fall back to the main integration settings.
+- The options form now pre-fills saved values, so changes persist reliably across reloads.
+
 
 ### Agent Prefix for Web Searches
 

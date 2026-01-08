@@ -78,14 +78,18 @@ class MockAnythingLLMClient:
         temperature: float = 0.5,
         max_tokens: int = 150,
         thread_slug: Optional[str] = None,
+        workspace_slug: Optional[str] = None,
     ) -> dict:
         """Send chat completion request to AnythingLLM."""
-        base_url, api_key, workspace_slug = await self.get_active_endpoint()
+        base_url, api_key, active_workspace = await self.get_active_endpoint()
+        # Use override if provided (primary path)
+        if workspace_slug:
+            active_workspace = workspace_slug
         
         if thread_slug:
-            chat_url = f"{base_url}/v1/workspace/{workspace_slug}/thread/{thread_slug}/chat"
+            chat_url = f"{base_url}/v1/workspace/{active_workspace}/thread/{thread_slug}/chat"
         else:
-            chat_url = f"{base_url}/v1/workspace/{workspace_slug}/chat"
+            chat_url = f"{base_url}/v1/workspace/{active_workspace}/chat"
         
         payload = {
             "message": messages[-1]["content"] if messages else "",
@@ -103,6 +107,31 @@ class MockAnythingLLMClient:
             raise Exception(f"Chat request failed with status {response.status_code}")
         
         return await response.json()
+
+    @staticmethod
+    async def test_workspace_override_primary():
+        """Test that workspace override is used in chat URL on primary endpoint."""
+        client = MockAnythingLLMClient(
+            api_key="primary-key",
+            base_url="http://primary:3001/api",
+            workspace_slug="primary-workspace",
+            failover_api_key="failover-key",
+            failover_base_url="http://failover:3001/api",
+            failover_workspace_slug="failover-workspace"
+        )
+        # Primary healthy
+        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
+        client.http_client.post = AsyncMock(return_value=MockHTTPResponse(
+            200,
+            {"textResponse": "Hello!", "type": "chat"}
+        ))
+
+        messages = [{"role": "user", "content": "Hi"}]
+        response = await client.chat_completion(messages, workspace_slug="override-workspace")
+        assert response["textResponse"] == "Hello!"
+        # Verify URL uses override workspace
+        call_args = client.http_client.post.call_args
+        assert "/v1/workspace/override-workspace/" in call_args[0][0], "Should use override workspace in URL"
 
 
 class TestAnythingLLMClient:
