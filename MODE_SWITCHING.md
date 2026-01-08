@@ -176,21 +176,52 @@ Or use variations:
 
 ## Customization
 
-To add or modify modes, edit the `PROMPT_MODES` dictionary in [`const.py`](custom_components/anything_llm_conversation/const.py):
+The mode system uses a modular design with a base persona template and mode-specific behavioral overlays. This ensures consistency across all modes while allowing specialized behaviors.
+
+### Adding a New Mode
+
+Edit the `MODE_BEHAVIORS` dictionary in [`const.py`](custom_components/anything_llm_conversation/const.py):
 
 ```python
-PROMPT_MODES = {
+MODE_BEHAVIORS = {
     "your_mode": {
         "name": "Your Mode Name",
-        "system_prompt": """Your custom system prompt here..."""
+        "behavior": """
+CURRENT MODE: Your Mode Name
+
+FOCUS:
+- Define your mode's specific focus areas
+- Add behavioral guidelines
+- Specify expertise or approach
+- List key objectives
+"""
     }
 }
 ```
+
+The mode will automatically inherit:
+- Base AI personality and tone
+- Core smart home capabilities
+- Device list and state information
+- Mode switching instructions
+- Consistent response formatting
 
 Then add trigger keywords in `MODE_KEYWORDS`:
 
 ```python
 MODE_KEYWORDS = {
-    "your_mode": ["your mode", "custom mode"]
+    "your_mode": ["your mode", "custom mode", "alternate trigger"]
 }
 ```
+
+### Modifying the Base Persona
+
+To change the core personality across all modes, edit `BASE_PERSONA` in [`const.py`](custom_components/anything_llm_conversation/const.py):
+
+```python
+BASE_PERSONA = """You are a helpful Home Assistant AI assistant...
+[Your custom base personality and guidelines]
+"""
+```
+
+This affects all modes while preserving their specialized behaviors.
