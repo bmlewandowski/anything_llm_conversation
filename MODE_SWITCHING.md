@@ -178,6 +178,73 @@ Or use variations:
 
 The mode system uses a modular design with a base persona template and mode-specific behavioral overlays. This ensures consistency across all modes while allowing specialized behaviors.
 
+### Using a Custom Base Persona
+
+You can customize the base persona while still benefiting from mode switching. Your custom prompt will be used as the foundation, with mode-specific behaviors layered on top.
+
+**To use a custom base persona:**
+
+1. Go to Settings > Devices & Services > AnythingLLM Conversation
+2. Click **Configure** on your conversation agent
+3. Edit the **Prompt Template** field
+
+**Your custom prompt must include these placeholders:**
+
+- `{mode_specific_behavior}` - Where mode behaviors will be inserted
+- `{mode_names}` - List of available modes for switching instructions
+- `{mode_display_name}` - The current mode's display name
+
+**Example Custom Base Persona:**
+
+```python
+"""You are JARVIS, an advanced AI assistant managing Tony Stark's smart home with sophistication and wit.
+
+PERSONALITY:
+- Polite, articulate, and slightly British
+- Anticipate needs before they're expressed
+- Dry humor when appropriate
+- Professional but personable
+
+CORE CAPABILITIES:
+- Monitor and control all home systems
+- Provide insightful analysis and recommendations
+- Explain actions clearly and concisely
+- Prioritize safety and efficiency
+
+{mode_specific_behavior}
+
+VOICE RESPONSES:
+- Keep responses natural and conversational
+- Avoid jargon unless specifically requested
+- When uncertain, ask for clarification rather than assume
+
+Current Time: {{{{now()}}}}
+
+Available Devices:
+```csv
+entity_id,name,state,aliases
+{{% for entity in exposed_entities -%}}
+{{{{ entity.entity_id }}}},{{{{ entity.name }}}},{{{{ entity.state }}}},{{{{entity.aliases | join('/')}}}}
+{{% endfor -%}}
+```
+
+MODE SWITCHING:
+When the user says {mode_names}, acknowledge the switch and adapt accordingly.
+If asked "what mode" or "what mode are you in", respond "I'm currently in {mode_display_name}, sir."
+"""
+```
+
+With this custom persona:
+- Default behavior: JARVIS personality with general assistance
+- "analysis mode": JARVIS with data analysis focus
+- "troubleshooting mode": JARVIS with diagnostic expertise
+- All modes maintain the JARVIS personality and tone
+
+**Important Notes:**
+- If you don't include the placeholders, modes won't inject their specialized behaviors
+- The `{{{{now()}}}}` and entity loop syntax is for Home Assistant's template engine (use double braces)
+- The `{mode_specific_behavior}` uses single braces (Python string formatting)
+
 ### Adding a New Mode
 
 Edit the `MODE_BEHAVIORS` dictionary in [`const.py`](custom_components/anything_llm_conversation/const.py):
@@ -200,7 +267,7 @@ FOCUS:
 ```
 
 The mode will automatically inherit:
-- Base AI personality and tone
+- Base AI personality and tone (default or custom)
 - Core smart home capabilities
 - Device list and state information
 - Mode switching instructions
@@ -214,9 +281,9 @@ MODE_KEYWORDS = {
 }
 ```
 
-### Modifying the Base Persona
+### Modifying the Default Base Persona
 
-To change the core personality across all modes, edit `BASE_PERSONA` in [`const.py`](custom_components/anything_llm_conversation/const.py):
+To change the default core personality for users who haven't customized their prompt, edit `BASE_PERSONA` in [`const.py`](custom_components/anything_llm_conversation/const.py):
 
 ```python
 BASE_PERSONA = """You are a helpful Home Assistant AI assistant...
@@ -224,4 +291,4 @@ BASE_PERSONA = """You are a helpful Home Assistant AI assistant...
 """
 ```
 
-This affects all modes while preserving their specialized behaviors.
+This affects all modes for users with the default prompt while preserving their specialized behaviors.

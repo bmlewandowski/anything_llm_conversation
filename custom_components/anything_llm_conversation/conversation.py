@@ -298,10 +298,17 @@ class AnythingLLMAgentEntity(
     def _generate_system_message(
         self, exposed_entities, user_input: conversation.ConversationInput, mode_key: str = "default"
     ):
-        # Use mode-specific prompt if available, otherwise fall back to user-configured prompt
-        raw_prompt = get_mode_prompt(mode_key)
-        if not raw_prompt:
-            raw_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
+        # Get user's custom prompt (if any)
+        user_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
+        
+        # If user has customized the prompt, use it as the base persona
+        # Otherwise use the default BASE_PERSONA from const.py
+        if user_prompt != DEFAULT_PROMPT:
+            # User customized - use their prompt as base, but still apply mode behaviors
+            raw_prompt = get_mode_prompt(mode_key, custom_base_persona=user_prompt)
+        else:
+            # Use default mode system
+            raw_prompt = get_mode_prompt(mode_key)
         
         prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key)
         return {"role": "system", "content": prompt}

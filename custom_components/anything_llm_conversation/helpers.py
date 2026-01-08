@@ -13,6 +13,8 @@ from .const import (
     MODE_KEYWORDS,
     MODE_QUERY_KEYWORDS,
     PROMPT_MODES,
+    BASE_PERSONA,
+    MODE_BEHAVIORS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,8 +46,37 @@ def get_mode_name(mode_key: str) -> str:
     return PROMPT_MODES.get(mode_key, {}).get("name", "Unknown Mode")
 
 
-def get_mode_prompt(mode_key: str) -> str:
-    """Get the system prompt for a mode key."""
+def get_mode_prompt(mode_key: str, custom_base_persona: str | None = None) -> str:
+    """Get the system prompt for a mode key.
+    
+    Args:
+        mode_key: The mode to get the prompt for
+        custom_base_persona: Optional custom base persona to use instead of default
+    
+    Returns:
+        Complete system prompt with base persona + mode behavior
+    """
+    # If custom base provided, rebuild the prompt with it
+    if custom_base_persona:
+        mode_data = MODE_BEHAVIORS.get(mode_key)
+        if not mode_data:
+            return custom_base_persona
+        
+        # Build mode names for switching instructions
+        other_modes = [f'"{m["name"].lower()}"' for k, m in MODE_BEHAVIORS.items() if k != mode_key]
+        if len(other_modes) > 1:
+            mode_names_text = ", ".join(other_modes[:-1]) + f", or {other_modes[-1]}"
+        else:
+            mode_names_text = other_modes[0] if other_modes else ""
+        
+        # Combine custom base with mode-specific behavior
+        return custom_base_persona.format(
+            mode_specific_behavior=mode_data["behavior"],
+            mode_names=mode_names_text,
+            mode_display_name=mode_data["name"]
+        )
+    
+    # Use pre-built prompt from PROMPT_MODES
     return PROMPT_MODES.get(mode_key, PROMPT_MODES["default"]).get("system_prompt", "")
 
 
