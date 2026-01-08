@@ -69,12 +69,11 @@ def get_mode_prompt(mode_key: str, custom_base_persona: str | None = None) -> st
         else:
             mode_names_text = other_modes[0] if other_modes else ""
         
-        # Combine custom base with mode-specific behavior
-        return custom_base_persona.format(
-            mode_specific_behavior=mode_data["behavior"],
-            mode_names=mode_names_text,
-            mode_display_name=mode_data["name"]
-        )
+        # Use simple string replacement instead of .format() to avoid conflicts with Jinja2 syntax
+        result = custom_base_persona.replace("{mode_specific_behavior}", mode_data["behavior"])
+        result = result.replace("{mode_names}", mode_names_text)
+        result = result.replace("{mode_display_name}", mode_data["name"])
+        return result
     
     # Use pre-built prompt from PROMPT_MODES
     return PROMPT_MODES.get(mode_key, PROMPT_MODES["default"]).get("system_prompt", "")
