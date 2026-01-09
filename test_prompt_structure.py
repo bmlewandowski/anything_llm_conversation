@@ -3,7 +3,7 @@
 import sys
 sys.path.insert(0, 'custom_components/anything_llm_conversation')
 
-from const import MODE_BEHAVIORS, BASE_PERSONA, PROMPT_MODES
+from modes import MODE_BEHAVIORS, BASE_PERSONA, PROMPT_MODES
 
 print("Testing mode prompt structure and placeholders:")
 print("=" * 70)

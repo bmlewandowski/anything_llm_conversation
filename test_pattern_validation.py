@@ -3,7 +3,7 @@
 import sys
 sys.path.insert(0, 'custom_components/anything_llm_conversation')
 
-from const import MODE_SUGGESTION_PATTERNS, MODE_SUGGESTION_THRESHOLD
+from mode_patterns import MODE_SUGGESTION_PATTERNS, MODE_SUGGESTION_THRESHOLD
 
 print("Testing pattern false positives and edge cases:")
 print("=" * 70)

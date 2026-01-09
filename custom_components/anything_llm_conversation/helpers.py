@@ -10,10 +10,14 @@ from homeassistant.helpers.httpx_client import get_async_client
 from .const import (
     DEFAULT_HEALTH_CHECK_TIMEOUT,
     DEFAULT_CHAT_TIMEOUT,
+)
+from .mode_patterns import (
     MODE_KEYWORDS,
     MODE_QUERY_KEYWORDS,
     MODE_SUGGESTION_PATTERNS,
     MODE_SUGGESTION_THRESHOLD,
+)
+from .modes import (
     PROMPT_MODES,
     BASE_PERSONA,
     MODE_BEHAVIORS,

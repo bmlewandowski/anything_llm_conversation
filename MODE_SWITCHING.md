@@ -235,7 +235,7 @@ The system detects these patterns (you can view/customize in `MODE_SUGGESTION_PA
 
 ### Tuning Suggestions
 
-You can adjust sensitivity in `const.py`:
+You can adjust sensitivity in [`mode_patterns.py`](custom_components/anything_llm_conversation/mode_patterns.py):
 ```python
 MODE_SUGGESTION_THRESHOLD = 1  # Pattern matches needed to trigger hint
 ```
@@ -403,7 +403,7 @@ With this custom persona:
 
 ### Adding a New Mode
 
-Edit the `MODE_BEHAVIORS` dictionary in [`const.py`](custom_components/anything_llm_conversation/const.py):
+Edit the `MODE_BEHAVIORS` dictionary in [`modes.py`](custom_components/anything_llm_conversation/modes.py):
 
 ```python
 MODE_BEHAVIORS = {
@@ -429,7 +429,7 @@ The mode will automatically inherit:
 - Mode switching instructions
 - Consistent response formatting
 
-Then add trigger keywords in `MODE_KEYWORDS`:
+Then add trigger keywords in [`mode_patterns.py`](custom_components/anything_llm_conversation/mode_patterns.py):
 
 ```python
 MODE_KEYWORDS = {
@@ -437,9 +437,19 @@ MODE_KEYWORDS = {
 }
 ```
 
+You can also add suggestion patterns to enable automatic mode suggestions:
+
+```python
+MODE_SUGGESTION_PATTERNS = {
+    "your_mode": [
+        "pattern that indicates", "this mode would help", "relevant keywords"
+    ]
+}
+```
+
 ### Modifying the Default Base Persona
 
-To change the default core personality for users who haven't customized their prompt, edit `BASE_PERSONA` in [`const.py`](custom_components/anything_llm_conversation/const.py):
+To change the default core personality for users who haven't customized their prompt, edit `BASE_PERSONA` in [`modes.py`](custom_components/anything_llm_conversation/modes.py):
 
 ```python
 BASE_PERSONA = """You are a helpful Home Assistant AI assistant...
@@ -448,3 +458,26 @@ BASE_PERSONA = """You are a helpful Home Assistant AI assistant...
 ```
 
 This affects all modes for users with the default prompt while preserving their specialized behaviors.
+
+## File Structure Reference
+
+After refactoring, mode-related code is organized as follows:
+
+- **[`modes.py`](custom_components/anything_llm_conversation/modes.py)** - Mode definitions and behaviors
+  - `BASE_PERSONA` - Base AI personality template
+  - `MODE_BEHAVIORS` - Specialized behaviors for each mode
+  - `PROMPT_MODES` - Compiled prompts combining base + mode behaviors
+
+- **[`mode_patterns.py`](custom_components/anything_llm_conversation/mode_patterns.py)** - Pattern matching
+  - `MODE_KEYWORDS` - Explicit mode switch triggers
+  - `MODE_QUERY_KEYWORDS` - Mode query detection
+  - `MODE_SUGGESTION_PATTERNS` - Automatic suggestion patterns
+  - `MODE_SUGGESTION_THRESHOLD` - Sensitivity threshold
+
+- **[`const.py`](custom_components/anything_llm_conversation/const.py)** - Configuration constants only
+  - Domain settings, URLs, timeouts, default prompts
+
+This separation makes it easier to:
+- Add or modify modes without touching configuration
+- Tune suggestion patterns independently
+- Maintain clear code organization

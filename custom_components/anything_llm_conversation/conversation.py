@@ -62,32 +62,13 @@ from .helpers import (
     get_mode_name,
     get_mode_prompt,
 )
+from .response_processor import (
+    clean_response_for_tts,
+    should_continue_conversation,
+    QueryResponse,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# Compiled regex patterns for text cleaning (performance optimization)
-_RE_THINK_TAGS = re.compile(r'<think>.*?</think>', flags=re.DOTALL | re.IGNORECASE)
-_RE_MARKDOWN_LINKS = re.compile(r'\[([^\]]+)\]\([^\)]+\)')
-_RE_WHITESPACE = re.compile(r'\s+')
-_RE_BR_TAGS = re.compile(r'<br\s*/?>', flags=re.IGNORECASE)
-_RE_HTML_TAGS = re.compile(r'<[^>]+>')
-_RE_CELSIUS = re.compile(r'(\d+)C\b')
-_RE_FAHRENHEIT = re.compile(r'(\d+)F\b')
-
-# Follow-up detection phrases (compiled once for performance)
-_FOLLOW_UP_PHRASES = frozenset([
-    "which one",
-    "would you like",
-    "do you want",
-    "would you prefer",
-    "which do you",
-    "what would you",
-    "shall i",
-    "should i",
-    "choose from",
-    "select from",
-    "pick from",
-])
 
 
 async def async_setup_entry(
@@ -273,11 +254,7 @@ class AnythingLLMAgentEntity(
         intent_response.async_set_speech(query_response.text)
 
         # Detect if LLM is asking a follow-up question to enable continued conversation
-        response_text = query_response.text or ""
-        response_lower = response_text.lower()
-        should_continue = response_text.rstrip().endswith("?") or any(
-            phrase in response_lower for phrase in _FOLLOW_UP_PHRASES
-        )
+        should_continue = should_continue_conversation(query_response.text)
 
         return conversation.ConversationResult(
             response=intent_response,
@@ -399,58 +376,6 @@ class AnythingLLMAgentEntity(
         _LOGGER.debug("Cached %d exposed entities", len(exposed_entities))
         return exposed_entities
 
-    def _clean_response_for_tts(self, text: str) -> str:
-        """Clean up LLM response for text-to-speech."""
-        # Option 1: Remove <think> tags and their content
-        text = _RE_THINK_TAGS.sub('', text)
-        
-        # Option 2: Remove only the <think> tags but keep the content inside
-        # Uncomment below and comment out Option 1 above to use this instead
-        # text = re.sub(r'</?think>', '', text, flags=re.IGNORECASE)
-        
-        # Option 3: Remove asterisks (markdown bold/italic)
-        text = text.replace('*', '')
-        
-        # Option 4: Remove other common markdown formatting
-        # Uncomment the ones you want to remove:
-        # text = text.replace('_', '')  # Remove underscores (italic)
-        # text = text.replace('~', '')  # Remove tildes (strikethrough)
-        # text = text.replace('`', '')  # Remove backticks (code)
-        # text = text.replace('#', '')  # Remove hash symbols (headers)
-        text = _RE_MARKDOWN_LINKS.sub(r'\1', text)  # Convert [text](url) to just text
-        # text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)  # Remove code blocks
-        # text = re.sub(r'https?://\S+', '', text)  # Remove URLs
-        text = _RE_WHITESPACE.sub(' ', text)  # Normalize whitespace to single spaces
-        
-        # Option 5: HTML entity handling
-        # Uncomment to convert common HTML entities to readable text:
-        text = html.unescape(text)  # Converts &nbsp; &amp; &lt; &gt; etc to actual characters
-        text = _RE_BR_TAGS.sub(' ', text)  # Convert <br> to space
-        text = _RE_HTML_TAGS.sub('', text)  # Remove any other HTML tags
-        
-        # Option 6: Emoji handling
-        # Uncomment to handle emojis (requires emoji package: pip install emoji):
-        # import emoji
-        # text = emoji.replace_emoji(text, replace='')  # Remove all emojis
-        # OR convert emojis to text descriptions:
-        # text = emoji.demojize(text, delimiters=(" ", " "))  # 😀 becomes "grinning face"
-        
-        # Option 7: Special character cleanup
-        # Uncomment to clean up characters that don't work well with TTS:
-        text = text.replace('°', ' degrees ')  # Temperature symbols
-        text = text.replace('%', ' percent ')  # Percent signs
-        text = text.replace('$', ' dollars ')  # Currency
-        text = text.replace('€', ' euros ')
-        text = text.replace('£', ' pounds ')
-        text = _RE_CELSIUS.sub(r'\1 degrees Celsius', text)  # 25C -> 25 degrees Celsius
-        text = _RE_FAHRENHEIT.sub(r'\1 degrees Fahrenheit', text)  # 77F -> 77 degrees Fahrenheit
-        
-        # Clean up stray leading punctuation that may remain after tag removal
-        text = text.strip()
-        text = text.lstrip('.,;:!?-')  # Remove leading punctuation
-        
-        return text.strip()
-
     async def query(
         self,
         user_input: conversation.ConversationInput,
@@ -496,17 +421,6 @@ class AnythingLLMAgentEntity(
             raise HomeAssistantError("Empty response from AnythingLLM")
 
         # Remove <think> tags before sending to TTS
-        text_response = self._clean_response_for_tts(text_response)
+        text_response = clean_response_for_tts(text_response)
 
-        return AnythingLLMQueryResponse(response=response, text=text_response)
-
-
-class AnythingLLMQueryResponse:
-    """AnythingLLM query response value object."""
-
-    def __init__(
-        self, response: dict, text: str
-    ) -> None:
-        """Initialize AnythingLLM query response value object."""
-        self.response = response
-        self.text = text
+        return QueryResponse(response=response, text=text_response)
