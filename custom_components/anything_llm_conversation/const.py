@@ -393,15 +393,16 @@ MODE_SUGGESTION_PATTERNS = {
     
     "research": [
         # Exploratory questions (clear question patterns)
-        "how does", "how do", "what is", "what are", "what's the",
-        "explain", "tell me about", "learn about", "understand",
-        # Decision-making questions
+        "how does", "how do", "what are", "explain", "tell me about",
+        "learn about", "understand",
+        # Decision-making questions  
         "should i get", "should i buy", "should i use", "should i choose",
         "would it be better", "can i use", "is it possible", "will it work",
         # Comparison and recommendations
         "compare", "comparison", "which is better", "which one", "which should",
         "best way to", "recommend", "recommendation", "suggest", "suggestion",
         "which integration", "which device", "which protocol", "which sensor",
+        "which smart", "which lock", "which hub", "which bulb",
         "difference between", "pros and cons", "advantages", "disadvantages",
         "alternative", "alternatives", "option", "options", "versus", "vs",
         # Setup and compatibility
