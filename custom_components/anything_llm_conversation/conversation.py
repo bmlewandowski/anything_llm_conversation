@@ -57,6 +57,7 @@ from .const import (
 )
 from .helpers import (
     detect_mode_switch,
+    detect_suggested_modes,
     is_mode_query,
     get_mode_name,
     get_mode_prompt,
@@ -309,6 +310,15 @@ class AnythingLLMAgentEntity(
         else:
             # Use default mode system
             raw_prompt = get_mode_prompt(mode_key)
+        
+        # Detect if query patterns suggest a different mode might be helpful
+        suggested_modes = detect_suggested_modes(user_input.text, mode_key)
+        if suggested_modes:
+            # Add a hint to the prompt (AI still decides whether to suggest)
+            mode_names = ", ".join([get_mode_name(m) for m in suggested_modes[:2]])  # Top 2 matches
+            mode_hint = f"\n\n[SYSTEM HINT: User query patterns suggest {mode_names} might be relevant for this question. Consider offering to switch if appropriate.]"
+            raw_prompt = raw_prompt + mode_hint
+            _LOGGER.debug("Pattern match detected - suggesting modes: %s", mode_names)
         
         prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key)
         return {"role": "system", "content": prompt}

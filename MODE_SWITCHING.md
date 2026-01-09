@@ -13,48 +13,85 @@ Standard smart home management mode. Provides concise, everyday language respons
 - "standard mode"
 
 ### 2. Analysis Mode
-Expert data analyst mode focused on breaking down complex information, identifying patterns, and providing statistical insights about your smart home.
+Expert data analyst mode that systematically analyzes your Home Assistant data using historical records, sensor readings, automation logs, and device statistics.
 
 **Trigger phrases:**
 - "analysis mode"
 - "analyzer mode"
 - "analyze mode"
 
+**What it does:**
+- Queries Home Assistant's recorder database for historical state data
+- Analyzes device behavior patterns, uptime, and availability
+- Tracks sensor readings over time (temperature, humidity, motion, etc.)
+- Monitors automation execution history and trigger frequencies
+- Calculates averages, peaks, trends, and anomalies
+- Provides statistical context with specific numbers and timeframes
+
 **Best for:**
-- Energy usage analysis
-- Device behavior patterns
-- Trend identification
+- Energy usage analysis and cost tracking
+- Device performance and reliability statistics
+- Sensor data trends (climate, motion, door/window activity)
+- Automation execution patterns ("how often does...", "when does...")
+- Usage statistics ("how much", "how often", "most used")
+- Time-based pattern analysis (daily, weekly, monthly)
+- Comparative analysis ("more than usual", "compared to last week")
 - Data-driven recommendations
 
 ### 3. Research Mode
-Thorough research assistant mode for deep dives into smart home technologies, comparing approaches, and comprehensive explanations.
+Comprehensive research assistant that provides well-researched, in-depth explanations with pros/cons analysis and technical background.
 
 **Trigger phrases:**
 - "research mode"
 - "researcher mode"
 
+**What it does:**
+- Uses @agent to search for current device specs and integration updates
+- Compares multiple approaches with detailed pros/cons analysis
+- References Home Assistant documentation and community best practices
+- Explains underlying concepts and reasoning behind recommendations
+- Evaluates trade-offs (cost, complexity, reliability, features)
+- Provides educational context, not just answers
+
 **Best for:**
-- Learning about new devices
-- Comparing automation strategies
-- Technical explanations
-- Integration research
+- "How does" and "what is" questions
+- Comparing devices or integration options
+- "Should I" and "which is better" decisions
+- Learning about setup, installation, and configuration
+- Understanding compatibility and technical specifications
 
 ### 4. Code Review Mode
-Senior Home Assistant expert mode for reviewing configurations, automations, and scripts.
+Senior Home Assistant expert that performs systematic code reviews with security checks, best practice validation, and specific improvement recommendations.
 
 **Trigger phrases:**
 - "code review mode"
 - "review mode"
 - "code mode"
 
+**What it does:**
+- Reviews YAML syntax for errors and proper indentation
+- Verifies entity IDs exist and are correctly referenced
+- Identifies security issues (exposed secrets, insecure protocols)
+- Validates service calls and template syntax (Jinja2)
+- Flags common anti-patterns and inefficiencies
+- Provides corrected code examples with line-specific feedback
+
+**Review structure:**
+1. **Summary** - Overall assessment
+2. **Critical Issues** - Security and functionality problems (fix immediately)
+3. **Warnings** - Best practice violations (should fix)
+4. **Suggestions** - Optimizations and improvements (nice to have)
+5. **Improvements** - Corrected code examples
+
 **Best for:**
-- YAML configuration review
-- Automation script optimization
-- Security vulnerability checks
-- Best practice recommendations
+- YAML configuration validation
+- Automation and script review
+- Security audits and vulnerability checks
+- Performance optimization
+- "Is this right?" validation questions
 
 ### 5. Troubleshooting Mode
-Technical support specialist mode for diagnosing and fixing device issues.
+Technical support specialist that follows a systematic 5-step diagnostic hierarchy to identify and resolve device and integration issues.
 
 **Trigger phrases:**
 - "troubleshooting mode"
@@ -62,33 +99,152 @@ Technical support specialist mode for diagnosing and fixing device issues.
 - "fix mode"
 - "troubleshoot mode"
 
+**What it does:**
+Follows this diagnostic hierarchy:
+
+1. **Verify Current State** - Check entity state, timestamps, error attributes
+2. **Check Connectivity** - Network status, integration loaded, device reachable
+3. **Examine Configuration** - YAML syntax, entity naming, required parameters
+4. **Analyze Logs** - Home Assistant error logs and patterns
+5. **Test and Verify** - Manual control tests, configuration reload, fix verification
+
+**Response format:**
+- Immediate status check results
+- Step-by-step diagnostic findings
+- Specific commands and service calls needed
+- Configuration changes with examples
+- Verification steps to confirm resolution
+
 **Best for:**
-- Step-by-step diagnostics
-- Device connectivity issues
-- Configuration error identification
-- Network status checks
-- Common problem resolution
+- "Not working" or "broken" devices
+- Offline, unavailable, or unresponsive entities
+- Automation not triggering issues
+- Template errors and integration failures
+- "Why isn't" and "what's wrong" questions
 
 ### 6. Guest Mode
-Simplified, privacy-conscious mode for visitors with limited device access.
+Simplified, privacy-conscious mode with strict access restrictions and enforced security boundaries for visitors.
 
 **Trigger phrases:**
 - "guest mode"
 - "visitor mode"
 - "simple mode"
 
+**What guests CAN do:**
+- Control lights (on/off, brightness, color) in common areas
+- Adjust temperature (limited to 68-76°F range)
+- Control media playback (play, pause, volume)
+- Activate pre-approved scenes ("Movie Time", "Relax")
+
+**What is FORBIDDEN:**
+- ❌ Security systems (locks, cameras, alarm, garage)
+- ❌ Personal areas (bedrooms, office, private spaces)
+- ❌ Automation schedules or routines
+- ❌ Historical data, energy usage, analytics
+- ❌ Integration details or network information
+- ❌ User names or presence detection
+- ❌ Settings or configuration changes
+- ❌ Developer Tools access
+
+**Privacy enforcement:**
+- All responses filtered to exclude personal information
+- Device counts and capabilities hidden
+- No mention of restricted features
+- Simple, welcoming language only
+
 **Best for:**
-- Basic device control (lights, temperature, media)
-- Plain, non-technical language
-- Privacy protection (no personal data exposed)
-- Essential functionality only
-- Welcoming experience for visitors
+- Temporary visitor access
+- Privacy-conscious guest control
+- Limited, essential functionality
+- Non-technical family members or friends
+
+## Automatic Mode Suggestions
+
+The integration uses intelligent pattern detection to suggest mode switches when your query would benefit from specialized expertise. This combines programmatic keyword matching with AI decision-making for reliable, context-aware suggestions.
+
+### How It Works
+
+**Hybrid Approach:**
+1. **Pattern Detection** - Analyzes your query for keywords that indicate a specialized mode would be helpful
+2. **AI Evaluation** - The AI considers full context and decides whether to actually suggest the mode
+3. **Natural Suggestions** - Offers to switch modes conversationally, never forcing
+
+### Example Scenarios
+
+**Energy Questions → Analysis Mode**
+```
+User: "Why is my energy bill so high?"
+Assistant: "Would you like me to switch to Analysis Mode for a detailed energy usage breakdown?"
+User: "Yes"
+Assistant: "Switching to Analysis Mode. Let me analyze your energy consumption patterns..."
+```
+
+**Device Statistics → Analysis Mode**
+```
+User: "How often does my garage door open?"
+Assistant: "Would you like me to switch to Analysis Mode for detailed statistics?"
+User: "Yes"
+Assistant: "Switching to Analysis Mode. Let me analyze your garage door usage patterns..."
+```
+
+**Device Questions → Research Mode**
+```
+User: "Should I get a Zigbee or Z-Wave smart lock?"
+Assistant: "Would you like me to switch to Research Mode to compare different approaches?"
+User: "Yes"
+Assistant: "Switching to Research Mode. Let me research both protocols for you..."
+```
+
+**Configuration Questions → Code Review Mode**
+```
+User: "Is this automation YAML correct?"
+Assistant: "Would you like me to switch to Code Review Mode for a thorough analysis?"
+User: "Yes please"
+Assistant: "Switching to Code Review Mode. Let me review your configuration..."
+```
+
+**Problem Reports → Troubleshooting Mode**
+```
+User: "My bedroom light isn't responding"
+Assistant: "Would you like me to switch to Troubleshooting Mode for systematic diagnostics?"
+User: "Yes"
+Assistant: "Switching to Troubleshooting Mode. Let me check the current state..."
+```
+
+### Pattern Triggers
+
+The system detects these patterns (you can view/customize in `MODE_SUGGESTION_PATTERNS`):
+
+- **Analysis Mode**: statistics, trend, pattern, "how often", "how many times", historical data, sensor data, device uptime, automation triggered, most used, performance, "over time", "past week"
+- **Research Mode**: "how does", "what is", "should I", compare, "which is better", recommend, "best way", compatibility, "pros and cons"
+- **Code Review Mode**: "review my", "check this", validate, "my automation", "this yaml", "is this right", optimize, refactor, "better way to write"
+- **Troubleshooting Mode**: "not working", "stopped working", broken, offline, unavailable, error, timeout, fix, debug, "why isn't", "connection lost"
+
+### Suggestion Behavior
+
+**The AI will:**
+- Suggest switching when query patterns match and context is appropriate
+- Only suggest once per conversation topic (not repeatedly)
+- Skip suggestions for simple queries the current mode handles well
+- Make suggestions natural and conversational, never pushy
+
+**You can:**
+- Accept: "Yes", "sure", "okay" → Immediately switches and answers
+- Decline: "No", "just answer", "not now" → Answers in current mode, won't suggest again
+- Ignore: The AI won't force the switch
+
+### Tuning Suggestions
+
+You can adjust sensitivity in `const.py`:
+```python
+MODE_SUGGESTION_THRESHOLD = 1  # Pattern matches needed to trigger hint
+```
 
 ## Usage
 
-### Switching Modes
+### Switching Modes Manually
 
-Simply say the mode name during a conversation:
+You can also explicitly switch modes anytime by saying the mode name:
 
 ```
 User: "Switch to analysis mode"

@@ -12,6 +12,8 @@ from .const import (
     DEFAULT_CHAT_TIMEOUT,
     MODE_KEYWORDS,
     MODE_QUERY_KEYWORDS,
+    MODE_SUGGESTION_PATTERNS,
+    MODE_SUGGESTION_THRESHOLD,
     PROMPT_MODES,
     BASE_PERSONA,
     MODE_BEHAVIORS,
@@ -39,6 +41,37 @@ def is_mode_query(user_input: str) -> bool:
     """Check if user is asking about the current mode."""
     input_lower = user_input.lower().strip()
     return any(keyword in input_lower for keyword in MODE_QUERY_KEYWORDS)
+
+
+def detect_suggested_modes(user_input: str, current_mode: str) -> list[str]:
+    """Detect which modes might be relevant based on query patterns.
+    
+    Returns a list of mode keys that match the user's query patterns,
+    excluding the current mode.
+    
+    Args:
+        user_input: The user's query text
+        current_mode: The currently active mode key
+    
+    Returns:
+        List of mode keys that match patterns, ordered by match count
+    """
+    input_lower = user_input.lower().strip()
+    mode_scores = {}
+    
+    # Count pattern matches for each mode
+    for mode_key, patterns in MODE_SUGGESTION_PATTERNS.items():
+        # Skip current mode - don't suggest switching to same mode
+        if mode_key == current_mode:
+            continue
+            
+        match_count = sum(1 for pattern in patterns if pattern in input_lower)
+        
+        if match_count >= MODE_SUGGESTION_THRESHOLD:
+            mode_scores[mode_key] = match_count
+    
+    # Return modes sorted by match count (highest first)
+    return sorted(mode_scores.keys(), key=lambda k: mode_scores[k], reverse=True)
 
 
 def get_mode_name(mode_key: str) -> str:

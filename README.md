@@ -14,6 +14,7 @@ AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent
 
 - **Voice Assistant Integration**: Seamlessly integrates with Home Assistant's voice assistant pipeline
 - **Voice-Triggered Mode Switching**: Switch between specialized AI modes (Analysis, Research, Code Review, Troubleshooting, Guest) using voice commands
+- **Automatic Mode Suggestions**: AI intelligently suggests switching to relevant modes based on your query patterns ("Would you like me to switch to Analysis Mode for a detailed energy breakdown?")
 - **Endpoint Failover**: Automatically fails over to a backup AnythingLLM server if the primary endpoint becomes unavailable
 - **Workspace-Based Context**: Uses AnythingLLM workspace and threads to ensure proper context for your queries
 - **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
@@ -40,12 +41,22 @@ Customize your AI assistant's behavior for different use cases by simply saying 
 - **Troubleshooting Mode** - Step-by-step device diagnostics
 - **Guest Mode** - Simplified, privacy-conscious interface for visitors
 
-**Example:**
+**Examples:**
+
+*Manual Mode Switching:*
 ```
 User: "Switch to analysis mode"
 Assistant: "Switching to Analysis Mode."
 User: "What's my energy usage pattern?"
 Assistant: [Provides detailed analytical response]
+```
+
+*Automatic Mode Suggestions:*
+```
+User: "Why is my energy bill so high?"
+Assistant: "Would you like me to switch to Analysis Mode for a detailed energy usage breakdown?"
+User: "Yes"
+Assistant: "Switching to Analysis Mode. Let me analyze your energy consumption patterns..."
 ```
 
 For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](MODE_SWITCHING.md).
