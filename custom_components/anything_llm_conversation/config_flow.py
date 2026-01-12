@@ -44,6 +44,7 @@ from .const import (
     CONF_FAILOVER_THREAD_SLUG,
     CONF_ENABLE_AGENT_PREFIX,
     CONF_AGENT_KEYWORDS,
+    CONF_ENABLE_HEALTH_CHECK,
     DEFAULT_ATTACH_USERNAME,
     DEFAULT_WORKSPACE_SLUG,
     DEFAULT_CONF_BASE_URL,
@@ -57,6 +58,7 @@ from .const import (
     DEFAULT_FAILOVER_WORKSPACE_SLUG,
     DEFAULT_ENABLE_AGENT_PREFIX,
     DEFAULT_AGENT_KEYWORDS,
+    DEFAULT_ENABLE_HEALTH_CHECK,
     DOMAIN,
 )
 from .helpers import get_anythingllm_client
@@ -72,6 +74,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_FAILOVER_API_KEY, description="Failover API Key"): str,
         vol.Optional(CONF_FAILOVER_BASE_URL, description="Failover Base URL"): str,
         vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, description="Failover Workspace Slug"): str,
+        vol.Optional(CONF_ENABLE_HEALTH_CHECK, default=DEFAULT_ENABLE_HEALTH_CHECK, description="Enable health check (disable for single endpoint setups)"): bool,
     }
 )
 
@@ -87,6 +90,7 @@ DEFAULT_OPTIONS = types.MappingProxyType(
         CONF_FAILOVER_THREAD_SLUG: DEFAULT_FAILOVER_THREAD_SLUG,
         CONF_ENABLE_AGENT_PREFIX: DEFAULT_ENABLE_AGENT_PREFIX,
         CONF_AGENT_KEYWORDS: DEFAULT_AGENT_KEYWORDS,
+        CONF_ENABLE_HEALTH_CHECK: DEFAULT_ENABLE_HEALTH_CHECK,
     }
 )
 
@@ -202,6 +206,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_FAILOVER_API_KEY, default=entry.data.get(CONF_FAILOVER_API_KEY, "")): str,
                 vol.Optional(CONF_FAILOVER_BASE_URL, default=entry.data.get(CONF_FAILOVER_BASE_URL, "")): str,
                 vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, default=entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, "")): str,
+                vol.Optional(CONF_ENABLE_HEALTH_CHECK, default=entry.data.get(CONF_ENABLE_HEALTH_CHECK, DEFAULT_ENABLE_HEALTH_CHECK)): BooleanSelector(),
             }
         )
         return self.async_show_form(
@@ -339,4 +344,9 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 description={"suggested_value": options.get(CONF_AGENT_KEYWORDS)},
                 default=options.get(CONF_AGENT_KEYWORDS, DEFAULT_AGENT_KEYWORDS),
             ): str,
+            vol.Optional(
+                CONF_ENABLE_HEALTH_CHECK,
+                description={"suggested_value": options.get(CONF_ENABLE_HEALTH_CHECK)},
+                default=options.get(CONF_ENABLE_HEALTH_CHECK, entry.data.get(CONF_ENABLE_HEALTH_CHECK, DEFAULT_ENABLE_HEALTH_CHECK)),
+            ): BooleanSelector(),
         }

@@ -129,6 +129,7 @@ class AnythingLLMClient:
         failover_base_url: str | None = None,
         failover_workspace_slug: str | None = None,
         failover_thread_slug: str | None = None,
+        enable_health_check: bool = True,
     ):
         """Initialize AnythingLLM client."""
         self.hass = hass
@@ -139,6 +140,7 @@ class AnythingLLMClient:
         self.failover_base_url = failover_base_url.rstrip("/") if failover_base_url else None
         self.failover_workspace_slug = failover_workspace_slug
         self.failover_thread_slug = failover_thread_slug
+        self.enable_health_check = enable_health_check
         self.http_client = get_async_client(hass)
         self.using_failover = False
 
@@ -160,6 +162,10 @@ class AnythingLLMClient:
 
     async def get_active_endpoint(self) -> tuple[str, str, str]:
         """Get active endpoint, failing over if necessary."""
+        # If health checks are disabled, always use primary endpoint
+        if not self.enable_health_check:
+            return self.base_url, self.api_key, self.workspace_slug
+        
         # Check primary endpoint
         primary_healthy = await self.check_endpoint_health(self.base_url, self.api_key)
         
@@ -290,6 +296,7 @@ async def get_anythingllm_client(
     failover_base_url: str | None = None,
     failover_workspace_slug: str | None = None,
     failover_thread_slug: str | None = None,
+    enable_health_check: bool = True,
 ) -> AnythingLLMClient:
     """Create and validate AnythingLLM client."""
     client = AnythingLLMClient(
@@ -301,6 +308,7 @@ async def get_anythingllm_client(
         failover_base_url,
         failover_workspace_slug,
         failover_thread_slug,
+        enable_health_check,
     )
     
     # Skip health check during setup - it will be done at conversation time

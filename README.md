@@ -273,6 +273,33 @@ This ensures uninterrupted voice assistant functionality even if one AnythingLLM
 **Note**: Health checks occur at conversation time, not during installation. This allows you to install the integration even when your AnythingLLM servers are temporarily offline.
 
 
+### Disabling Health Checks
+
+
+If you're using only a single AnythingLLM endpoint without failover, you can disable health checks to improve performance:
+
+
+1. Navigate to **Settings** → **Devices & Services** → **AnythingLLM Conversation**
+2. Click **Configure** on your integration
+3. Uncheck **Enable health check**
+4. Click **Submit**
+
+
+When disabled, the integration skips the ~3-second health check before each conversation and always uses the primary endpoint. This is recommended for single-endpoint setups where failover functionality is not needed.
+
+
+**Benefits of disabling health checks:**
+- Faster response times (~3 seconds saved per conversation)
+- Reduced API calls to your AnythingLLM server
+- Simpler behavior when failover isn't configured
+
+
+**Keep health checks enabled if:**
+- You have a failover endpoint configured
+- You need automatic endpoint switching for high availability
+- Your AnythingLLM server experiences occasional downtime
+
+
 ## API Endpoint Structure
 
 

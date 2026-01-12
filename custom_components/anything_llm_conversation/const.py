@@ -51,3 +51,5 @@ CONF_ENABLE_AGENT_PREFIX = "enable_agent_prefix"
 DEFAULT_ENABLE_AGENT_PREFIX = False
 CONF_AGENT_KEYWORDS = "agent_keywords"
 DEFAULT_AGENT_KEYWORDS = "search, lookup, find online, web search, google, browse, check online, look up, scrape"
+CONF_ENABLE_HEALTH_CHECK = "enable_health_check"
+DEFAULT_ENABLE_HEALTH_CHECK = True

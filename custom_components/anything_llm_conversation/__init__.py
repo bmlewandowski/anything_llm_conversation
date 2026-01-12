@@ -22,6 +22,8 @@ from .const import (
     CONF_FAILOVER_API_KEY,
     CONF_FAILOVER_WORKSPACE_SLUG,
     CONF_FAILOVER_THREAD_SLUG,
+    CONF_ENABLE_HEALTH_CHECK,
+    DEFAULT_ENABLE_HEALTH_CHECK,
     DOMAIN,
 )
 from .helpers import AnythingLLMClient, get_anythingllm_client
@@ -57,6 +59,7 @@ async def async_setup_entry(
             failover_base_url=entry.data.get(CONF_FAILOVER_BASE_URL),
             failover_workspace_slug=entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG),
             failover_thread_slug=entry.options.get(CONF_FAILOVER_THREAD_SLUG),
+            enable_health_check=entry.data.get(CONF_ENABLE_HEALTH_CHECK, DEFAULT_ENABLE_HEALTH_CHECK),
         )
     except Exception as err:
         _LOGGER.error("Failed to connect to AnythingLLM: %s", err)
