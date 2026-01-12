@@ -61,6 +61,50 @@ Assistant: "Switching to Analysis Mode. Let me analyze your energy consumption p
 
 For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](MODE_SWITCHING.md).
 
+### Dynamic Workspace Switching
+
+Switch between different AnythingLLM workspaces on-the-fly during conversations to access different RAG sources, agents, and configurations.
+
+**Commands:**
+```
+User: "!workspace finance"
+Assistant: "Switched to workspace finance. How can I help you?"
+
+User: "!workspace technical-support"
+Assistant: "Switched to workspace technical-support. How can I help you?"
+
+User: "!workspace default"
+Assistant: "Switched back to default workspace. How can I help you?"
+
+User: "!workspace"
+Assistant: "Currently using workspace: finance"
+```
+
+**Use Cases:**
+- **Finance Workspace** - Access financial documents, budgets, and accounting data
+- **Technical Support** - Switch to technical documentation and troubleshooting guides
+- **Home Automation** - Use device manuals and automation examples
+- **Personal Knowledge** - Access your personal notes and documents
+
+**Features:**
+- Conversation history is cleared when switching workspaces (fresh context)
+- Each conversation can use a different workspace
+- Workspace changes persist for the duration of the conversation
+- Works seamlessly with voice assistants
+
+**Examples:**
+```
+User: "!workspace finance"
+Assistant: "Switched to workspace finance. How can I help you?"
+User: "What were my Q4 expenses?"
+Assistant: [Accesses finance workspace with Q4 budget documents]
+
+User: "!workspace default"
+Assistant: "Switched back to default workspace. How can I help you?"
+User: "Turn on the living room lights"
+Assistant: [Back to your primary home automation workspace]
+```
+
 
 ## Installation
 

@@ -112,6 +112,9 @@ class AnythingLLMAgentEntity(
         
         # Mode management - track mode per conversation
         self.conversation_modes: dict[str, str] = {}  # conversation_id -> mode_key
+        
+        # Workspace management - track workspace per conversation
+        self.conversation_workspaces: dict[str, str] = {}  # conversation_id -> workspace_slug
 
         self.options = subentry.data
         self._attr_unique_id = subentry.subentry_id
@@ -154,6 +157,11 @@ class AnythingLLMAgentEntity(
         
         # Get current mode for this conversation (default to "default")
         current_mode = self.conversation_modes.get(conversation_id, "default")
+        
+        # Check for workspace switch command
+        workspace_switch_result = self._check_workspace_switch(user_input.text, conversation_id, user_input.language)
+        if workspace_switch_result:
+            return workspace_switch_result
         
         # Check for mode query first
         if is_mode_query(user_input.text):
@@ -225,7 +233,9 @@ class AnythingLLMAgentEntity(
         messages.append(user_message)
 
         try:
-            query_response = await self.query(user_input, messages)
+            # Get conversation-specific workspace or use default
+            active_workspace = self.conversation_workspaces.get(conversation_id)
+            query_response = await self.query(user_input, messages, active_workspace)
         except Exception as err:
             _LOGGER.error(err)
             intent_response = intent.IntentResponse(language=user_input.language)
@@ -263,6 +273,104 @@ class AnythingLLMAgentEntity(
             conversation_id=conversation_id,
             continue_conversation=should_continue,
         )
+
+    def _check_workspace_switch(
+        self, user_text: str, conversation_id: str, language: str
+    ) -> conversation.ConversationResult | None:
+        """Check if user is requesting a workspace switch.
+        
+        Supports commands like:
+        - !workspace finance            → Switch to finance workspace
+        - !workspace technical-support  → Switch to technical-support workspace
+        - !workspace default            → Return to primary configured workspace
+        - !workspace                    → Show current workspace
+        """
+        text_lower = user_text.lower().strip()
+        
+        # Check for workspace query
+        if text_lower in ["!workspace", "what workspace", "current workspace", "which workspace"]:
+            current_workspace = self.conversation_workspaces.get(conversation_id)
+            if current_workspace:
+                response_text = f"Currently using workspace: {current_workspace}"
+            else:
+                # Get default workspace
+                opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+                data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+                workspace_slug = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+                response_text = f"Using default workspace: {workspace_slug}"
+            
+            intent_response = intent.IntentResponse(language=language)
+            intent_response.async_set_speech(response_text)
+            return conversation.ConversationResult(
+                response=intent_response, conversation_id=conversation_id
+            )
+        
+        # Check for workspace switch command
+        if text_lower.startswith("!workspace "):
+            new_workspace = user_text.split(" ", 1)[1].strip()
+            new_workspace_lower = new_workspace.lower()
+            
+            # Handle "default" keyword to return to primary workspace
+            if new_workspace_lower == "default":
+                # Clear the workspace override to return to configured default
+                if conversation_id in self.conversation_workspaces:
+                    del self.conversation_workspaces[conversation_id]
+                
+                # Clear history when switching workspaces (different context)
+                if conversation_id in self.history:
+                    del self.history[conversation_id]
+                
+                # Get the actual default workspace name
+                opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+                data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+                default_workspace = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+                
+                _LOGGER.info(
+                    "Workspace reset to default (%s) for conversation %s",
+                    default_workspace,
+                    conversation_id,
+                )
+                
+                intent_response = intent.IntentResponse(language=language)
+                intent_response.async_set_speech(
+                    f"Switched back to default workspace. How can I help you?"
+                )
+                return conversation.ConversationResult(
+                    response=intent_response, conversation_id=conversation_id
+                )
+            
+            # Validate workspace slug format (basic validation)
+            if not new_workspace or len(new_workspace) < 1:
+                intent_response = intent.IntentResponse(language=language)
+                intent_response.async_set_speech("Please provide a valid workspace slug.")
+                return conversation.ConversationResult(
+                    response=intent_response, conversation_id=conversation_id
+                )
+            
+            # Store the new workspace for this conversation
+            old_workspace = self.conversation_workspaces.get(conversation_id, "default")
+            self.conversation_workspaces[conversation_id] = new_workspace
+            
+            # Clear history when switching workspaces (different context)
+            if conversation_id in self.history:
+                del self.history[conversation_id]
+            
+            _LOGGER.info(
+                "Workspace switched from %s to %s for conversation %s",
+                old_workspace,
+                new_workspace,
+                conversation_id,
+            )
+            
+            intent_response = intent.IntentResponse(language=language)
+            intent_response.async_set_speech(
+                f"Switched to workspace {new_workspace}. How can I help you?"
+            )
+            return conversation.ConversationResult(
+                response=intent_response, conversation_id=conversation_id
+            )
+        
+        return None
 
     def _should_use_agent_prefix(self, user_text: str) -> bool:
         """Determine if @agent prefix should be added based on keywords."""
@@ -382,12 +490,18 @@ class AnythingLLMAgentEntity(
         self,
         user_input: conversation.ConversationInput,
         messages: list[dict],
-    ) -> AnythingLLMQueryResponse:
+        workspace_override: str | None = None,
+    ) -> QueryResponse:
         """Process a sentence."""
-        # Prefer subentry options values; if default placeholders are present, fall back to main entry data
-        opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
-        data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
-        workspace_slug = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+        # Use workspace override if provided (from conversation-specific workspace)
+        if workspace_override:
+            workspace_slug = workspace_override
+        else:
+            # Prefer subentry options values; if default placeholders are present, fall back to main entry data
+            opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+            data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+            workspace_slug = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+        
         max_tokens = self.options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
         thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
