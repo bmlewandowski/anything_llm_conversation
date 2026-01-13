@@ -20,8 +20,13 @@ def test_workspace_patterns():
         ("use default workspace", "default"),
         
         # Query patterns (should return None for workspace)
+        ("!workspace", None),
         ("what workspace", None),
         ("current workspace", None),
+        ("what workspace are you in", None),
+        ("what workspace am i in", None),
+        ("which workspace are you in", None),
+        ("what workspace are you using", None),
     ]
     
     results = []
@@ -52,7 +57,32 @@ def test_workspace_patterns():
             new_workspace = text_lower.replace("switch workspace to ", "").strip()
         
         # Check for query patterns (should not extract workspace)
-        if text_lower in ["!workspace", "what workspace", "current workspace", "which workspace"]:
+        workspace_query_patterns = [
+            "!workspace",
+            "what workspace",
+            "current workspace", 
+            "which workspace",
+            "what workspace are you in",
+            "what workspace am i in",
+            "which workspace are you in",
+            "which workspace am i in",
+            "what workspace are you using",
+            "what workspace am i using",
+        ]
+        
+        is_workspace_query = (
+            text_lower in workspace_query_patterns or
+            text_lower.startswith("what workspace") or
+            text_lower.startswith("which workspace") or
+            (text_lower.startswith("current") and "workspace" in text_lower)
+        )
+        
+        # Don't extract workspace if it's a query (unless it's also a switch command)
+        is_switch_command = any(
+            text_lower.startswith(p) for p in ["switch to", "use ", "change workspace to", "switch workspace to", "!workspace "]
+        )
+        
+        if is_workspace_query and not is_switch_command:
             new_workspace = None
         
         match = "✓" if new_workspace == expected_workspace else "✗"

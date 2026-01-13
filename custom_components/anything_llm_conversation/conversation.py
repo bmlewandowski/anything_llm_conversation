@@ -300,8 +300,31 @@ class AnythingLLMAgentEntity(
         """
         text_lower = user_text.lower().strip()
         
-        # Check for workspace query
-        if text_lower in ["!workspace", "what workspace", "current workspace", "which workspace"]:
+        # Check for workspace query - support various natural language patterns
+        workspace_query_patterns = [
+            "!workspace",
+            "what workspace",
+            "current workspace", 
+            "which workspace",
+            "what workspace are you in",
+            "what workspace am i in",
+            "which workspace are you in",
+            "which workspace am i in",
+            "what workspace are you using",
+            "what workspace am i using",
+        ]
+        
+        # Also check if the text contains key phrases
+        is_workspace_query = (
+            text_lower in workspace_query_patterns or
+            text_lower.startswith("what workspace") or
+            text_lower.startswith("which workspace") or
+            (text_lower.startswith("current") and "workspace" in text_lower)
+        )
+        
+        if is_workspace_query and not any(
+            text_lower.startswith(p) for p in ["switch to", "use ", "change workspace to", "switch workspace to"]
+        ):
             current_workspace = self.conversation_workspaces.get(conversation_id)
             if current_workspace:
                 response_text = f"Currently using workspace: {current_workspace}"

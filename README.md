@@ -86,7 +86,8 @@ Assistant: "Currently using workspace: finance"
 - `use <name> workspace` - Alternative voice command
 - `change workspace to <name>` - Another natural option
 - `switch workspace to <name>` - Another alternative
-- `what workspace` / `current workspace` - Check active workspace
+- `what workspace` / `what workspace are you in` - Check active workspace
+- `which workspace` / `current workspace` - Alternative queries
 
 **Use Cases:**
 - **Finance Workspace** - Access financial documents, budgets, and accounting data
