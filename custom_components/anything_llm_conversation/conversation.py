@@ -115,6 +115,7 @@ class AnythingLLMAgentEntity(
         
         # Workspace management - track workspace per conversation
         self.conversation_workspaces: dict[str, str] = {}  # conversation_id -> workspace_slug
+        self.conversation_threads: dict[str, str | None] = {}  # conversation_id -> thread_slug (None = use default)
 
         self.options = subentry.data
         self._attr_unique_id = subentry.subentry_id
@@ -235,13 +236,16 @@ class AnythingLLMAgentEntity(
         try:
             # Get conversation-specific workspace or use default
             active_workspace = self.conversation_workspaces.get(conversation_id)
+            # Get conversation-specific thread override (None means use default for that workspace)
+            active_thread = self.conversation_threads.get(conversation_id) if conversation_id in self.conversation_threads else None
             _LOGGER.info(
-                "Using workspace '%s' for conversation %s (workspace override: %s)",
+                "Using workspace '%s' for conversation %s (workspace override: %s, thread override: %s)",
                 active_workspace or "default",
                 conversation_id,
-                "Yes" if active_workspace else "No"
+                "Yes" if active_workspace else "No",
+                "None (workspace default)" if active_thread is None and conversation_id in self.conversation_threads else "configured"
             )
-            query_response = await self.query(user_input, messages, active_workspace)
+            query_response = await self.query(user_input, messages, active_workspace, active_thread)
         except Exception as err:
             _LOGGER.error(err)
             intent_response = intent.IntentResponse(language=user_input.language)
@@ -351,6 +355,10 @@ class AnythingLLMAgentEntity(
                 if conversation_id in self.conversation_workspaces:
                     del self.conversation_workspaces[conversation_id]
                 
+                # Clear the thread override to restore configured thread
+                if conversation_id in self.conversation_threads:
+                    del self.conversation_threads[conversation_id]
+                
                 # Clear history when switching workspaces (different context)
                 if conversation_id in self.history:
                     del self.history[conversation_id]
@@ -385,6 +393,10 @@ class AnythingLLMAgentEntity(
             # Store the new workspace for this conversation
             old_workspace = self.conversation_workspaces.get(conversation_id, "default")
             self.conversation_workspaces[conversation_id] = new_workspace
+            
+            # Clear thread override - use the new workspace's default thread
+            # (configured thread slug is only valid for the default workspace)
+            self.conversation_threads[conversation_id] = None
             
             # Clear history when switching workspaces (different context)
             if conversation_id in self.history:
@@ -527,6 +539,7 @@ class AnythingLLMAgentEntity(
         user_input: conversation.ConversationInput,
         messages: list[dict],
         workspace_override: str | None = None,
+        thread_override: str | None | bool = False,
     ) -> QueryResponse:
         """Process a sentence."""
         # Use workspace override if provided (from conversation-specific workspace)
@@ -542,7 +555,18 @@ class AnythingLLMAgentEntity(
         
         max_tokens = self.options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
-        thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
+        
+        # Handle thread override: False = use configured, None = use workspace default, string = use that thread
+        if thread_override is False:
+            # No override specified - use configured thread
+            thread_slug = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
+        elif thread_override is None:
+            # Explicit None - don't use any thread (workspace default)
+            thread_slug = None
+        else:
+            # String value - use that specific thread
+            thread_slug = thread_override
+        
         failover_thread_slug = self.options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG)
         opt_failover_workspace_slug = self.options.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)
         data_failover_workspace_slug = self.entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)

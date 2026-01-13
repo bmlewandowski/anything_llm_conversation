@@ -98,6 +98,9 @@ Assistant: "Currently using workspace: finance"
 - Conversation history is cleared when switching workspaces (fresh context)
 - Each conversation can use a different workspace
 - Workspace changes persist for the duration of the conversation
+- Thread slug is automatically managed:
+  - When switching to a non-default workspace: uses that workspace's default thread
+  - When switching back to default workspace: restores your configured thread slug
 - Works seamlessly with voice assistants
 
 **Examples:**
