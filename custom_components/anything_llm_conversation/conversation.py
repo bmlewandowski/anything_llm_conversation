@@ -235,6 +235,12 @@ class AnythingLLMAgentEntity(
         try:
             # Get conversation-specific workspace or use default
             active_workspace = self.conversation_workspaces.get(conversation_id)
+            _LOGGER.info(
+                "Using workspace '%s' for conversation %s (workspace override: %s)",
+                active_workspace or "default",
+                conversation_id,
+                "Yes" if active_workspace else "No"
+            )
             query_response = await self.query(user_input, messages, active_workspace)
         except Exception as err:
             _LOGGER.error(err)
@@ -385,11 +391,12 @@ class AnythingLLMAgentEntity(
                 del self.history[conversation_id]
             
             _LOGGER.info(
-                "Workspace switched from %s to %s for conversation %s",
+                "Workspace switched from %s to %s for conversation %s (stored in conversation_workspaces dict)",
                 old_workspace,
                 new_workspace,
                 conversation_id,
             )
+            _LOGGER.debug("conversation_workspaces state: %s", self.conversation_workspaces)
             
             intent_response = intent.IntentResponse(language=language)
             intent_response.async_set_speech(
@@ -525,11 +532,13 @@ class AnythingLLMAgentEntity(
         # Use workspace override if provided (from conversation-specific workspace)
         if workspace_override:
             workspace_slug = workspace_override
+            _LOGGER.info("Using workspace override: %s", workspace_override)
         else:
             # Prefer subentry options values; if default placeholders are present, fall back to main entry data
             opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
             data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
             workspace_slug = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+            _LOGGER.debug("Using default workspace (no override): %s", workspace_slug)
         
         max_tokens = self.options.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
         temperature = self.options.get(CONF_TEMPERATURE, DEFAULT_TEMPERATURE)
@@ -539,7 +548,7 @@ class AnythingLLMAgentEntity(
         data_failover_workspace_slug = self.entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)
         failover_workspace_slug = opt_failover_workspace_slug or data_failover_workspace_slug
 
-        _LOGGER.debug("Sending request to AnythingLLM workspace %s with %d messages", workspace_slug, len(messages))
+        _LOGGER.info("Sending request to AnythingLLM workspace '%s' with %d messages", workspace_slug, len(messages))
 
         # Call AnythingLLM API
         try:

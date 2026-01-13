@@ -214,16 +214,27 @@ class AnythingLLMClient:
             # Use the per-agent failover workspace override if set, otherwise use the configured failover workspace
             final_workspace_slug = active_failover_workspace or self.failover_workspace_slug or self.workspace_slug
             active_thread_slug = self.failover_thread_slug
+            _LOGGER.info("Using failover endpoint - workspace: %s, thread: %s", final_workspace_slug, active_thread_slug or "None")
         else:
             # Use the provided workspace override if set, otherwise default to active workspace
             final_workspace_slug = workspace_slug or active_workspace_slug or self.workspace_slug
             active_thread_slug = thread_slug
+            _LOGGER.info(
+                "Using primary endpoint - workspace: %s (override: %s, active: %s, default: %s), thread: %s",
+                final_workspace_slug,
+                workspace_slug or "None",
+                active_workspace_slug or "None",
+                self.workspace_slug,
+                active_thread_slug or "None"
+            )
         
         # Construct AnythingLLM API endpoint - use thread slug in URL if provided
         if active_thread_slug:
             chat_url = f"{base_url}/v1/workspace/{final_workspace_slug}/thread/{active_thread_slug}/chat"
         else:
             chat_url = f"{base_url}/v1/workspace/{final_workspace_slug}/chat"
+        
+        _LOGGER.info("API URL: %s", chat_url)
         
         payload = {
             "message": messages[-1]["content"] if messages else "",
