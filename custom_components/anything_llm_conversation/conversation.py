@@ -399,7 +399,7 @@ class AnythingLLMAgentEntity(
                 
                 intent_response = intent.IntentResponse(language=language)
                 intent_response.async_set_speech(
-                    f"Switched back to default workspace. How can I help you?"
+                    f"Switched to workspace {default_workspace}. How can I help you?"
                 )
                 return conversation.ConversationResult(
                     response=intent_response, conversation_id=conversation_id
