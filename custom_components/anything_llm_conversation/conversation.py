@@ -281,9 +281,12 @@ class AnythingLLMAgentEntity(
         
         Supports commands like:
         - !workspace finance            → Switch to finance workspace
-        - !workspace technical-support  → Switch to technical-support workspace
+        - switch to finance workspace   → Switch to finance workspace
+        - use technical workspace       → Switch to technical-support workspace
         - !workspace default            → Return to primary configured workspace
+        - switch to default workspace   → Return to primary configured workspace
         - !workspace                    → Show current workspace
+        - what workspace                → Show current workspace
         """
         text_lower = user_text.lower().strip()
         
@@ -305,9 +308,35 @@ class AnythingLLMAgentEntity(
                 response=intent_response, conversation_id=conversation_id
             )
         
-        # Check for workspace switch command
+        # Extract workspace name from various command patterns
+        new_workspace = None
+        
+        # Pattern 1: "!workspace <name>"
         if text_lower.startswith("!workspace "):
             new_workspace = user_text.split(" ", 1)[1].strip()
+        
+        # Pattern 2: "switch to <name> workspace"
+        elif text_lower.startswith("switch to ") and " workspace" in text_lower:
+            # Extract workspace name between "switch to" and "workspace"
+            parts = text_lower.replace("switch to ", "").replace(" workspace", "").strip()
+            new_workspace = parts
+        
+        # Pattern 3: "use <name> workspace"
+        elif text_lower.startswith("use ") and " workspace" in text_lower:
+            # Extract workspace name between "use" and "workspace"
+            parts = text_lower.replace("use ", "").replace(" workspace", "").strip()
+            new_workspace = parts
+        
+        # Pattern 4: "change workspace to <name>"
+        elif text_lower.startswith("change workspace to "):
+            new_workspace = text_lower.replace("change workspace to ", "").strip()
+        
+        # Pattern 5: "switch workspace to <name>"
+        elif text_lower.startswith("switch workspace to "):
+            new_workspace = text_lower.replace("switch workspace to ", "").strip()
+        
+        # If we found a workspace switch request
+        if new_workspace:
             new_workspace_lower = new_workspace.lower()
             
             # Handle "default" keyword to return to primary workspace

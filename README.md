@@ -65,20 +65,28 @@ For complete documentation including all trigger phrases, use cases, and customi
 
 Switch between different AnythingLLM workspaces on-the-fly during conversations to access different RAG sources, agents, and configurations.
 
-**Commands:**
+**Voice Commands:**
 ```
-User: "!workspace finance"
+User: "Switch to finance workspace"
 Assistant: "Switched to workspace finance. How can I help you?"
 
-User: "!workspace technical-support"
+User: "Use technical support workspace"
 Assistant: "Switched to workspace technical-support. How can I help you?"
 
-User: "!workspace default"
+User: "Switch to default workspace"
 Assistant: "Switched back to default workspace. How can I help you?"
 
-User: "!workspace"
+User: "What workspace"
 Assistant: "Currently using workspace: finance"
 ```
+
+**Alternative Commands:**
+- `!workspace <name>` - Traditional command format
+- `switch to <name> workspace` - Natural voice command
+- `use <name> workspace` - Alternative voice command
+- `change workspace to <name>` - Another natural option
+- `switch workspace to <name>` - Another alternative
+- `what workspace` / `current workspace` - Check active workspace
 
 **Use Cases:**
 - **Finance Workspace** - Access financial documents, budgets, and accounting data
@@ -94,12 +102,12 @@ Assistant: "Currently using workspace: finance"
 
 **Examples:**
 ```
-User: "!workspace finance"
+User: "Switch to finance workspace"
 Assistant: "Switched to workspace finance. How can I help you?"
 User: "What were my Q4 expenses?"
 Assistant: [Accesses finance workspace with Q4 budget documents]
 
-User: "!workspace default"
+User: "Use default workspace"
 Assistant: "Switched back to default workspace. How can I help you?"
 User: "Turn on the living room lights"
 Assistant: [Back to your primary home automation workspace]
