@@ -205,13 +205,13 @@ By default (when thread slugs are left blank), AnythingLLM uses the workspace's 
 - When you specify a thread slug, the integration routes messages to that specific conversation thread
 
 
+
 **Endpoint-specific thread behavior:**
-- **Primary endpoint**: Uses the **Thread Slug** value
-- **Failover endpoint**: Uses the **Failover Thread Slug** value (if configured), or the failover workspace's default thread (if left blank)
-- Each endpoint maintains its own separate thread context - thread slugs are NOT shared between primary and failover
+- **Primary endpoint**: Uses the **Thread Slug** value (if set), or the workspace's default thread if left blank.
+- **Failover endpoint**: Uses the **Failover Thread Slug** value (if set), or the failover workspace's default thread if left blank. If no failover workspace is configured, it will use the failover server's own default workspace and will not set a thread slug (plain `/chat` call).
+- Each endpoint maintains its own separate thread context—thread slugs are NOT shared between primary and failover.
 
-
-You can change or clear thread slugs at any time to switch between threads or return to the default workspace thread.
+You can change or clear thread slugs at any time to switch between threads or return to the default workspace thread. If failover workspace/thread is not set, failover will always use its own default workspace and no thread.
 
 
 ### Adding Home Assistant Automation Custom Skill in AnythingLLM

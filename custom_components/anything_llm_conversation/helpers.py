@@ -211,10 +211,15 @@ class AnythingLLMClient:
         
         # Determine which workspace and thread slug to use based on active endpoint
         if self.using_failover:
-            # Use the per-agent failover workspace override if set, otherwise use the configured failover workspace
-            final_workspace_slug = active_failover_workspace or self.failover_workspace_slug or self.workspace_slug
-            active_thread_slug = self.failover_thread_slug
-            _LOGGER.info("Using failover endpoint - workspace: %s, thread: %s", final_workspace_slug, active_thread_slug or "None")
+            # If failover_workspace_slug is not set, use a generic default and do not set a thread
+            if not active_failover_workspace:
+                final_workspace_slug = DEFAULT_FAILOVER_WORKSPACE_SLUG or "default-workspace"
+                active_thread_slug = None
+                _LOGGER.info("Using failover endpoint - generic default workspace: %s, no thread", final_workspace_slug)
+            else:
+                final_workspace_slug = active_failover_workspace
+                active_thread_slug = self.failover_thread_slug
+                _LOGGER.info("Using failover endpoint - workspace: %s, thread: %s", final_workspace_slug, active_thread_slug or "None")
         else:
             # Use the provided workspace override if set, otherwise default to active workspace
             final_workspace_slug = workspace_slug or active_workspace_slug or self.workspace_slug
