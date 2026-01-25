@@ -17,7 +17,7 @@ CONF_FAILOVER_WORKSPACE_SLUG = "failover_workspace_slug"
 CONF_HEALTH_CHECK_TIMEOUT = "health_check_timeout"
 DEFAULT_HEALTH_CHECK_TIMEOUT = 3.0  # Quick health check for endpoint availability
 CONF_CHAT_TIMEOUT = "chat_timeout"
-DEFAULT_CHAT_TIMEOUT = 45.0  # Timeout for chat completion requests
+DEFAULT_CHAT_TIMEOUT = 60.0  # Timeout for chat completion requests
 
 EVENT_CONVERSATION_FINISHED = "anything_llm_conversation.conversation.finished"
 

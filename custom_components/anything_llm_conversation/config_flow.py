@@ -79,8 +79,16 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_FAILOVER_BASE_URL, description="Failover Base URL"): str,
         vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, description="Failover Workspace Slug"): str,
         vol.Optional(CONF_ENABLE_HEALTH_CHECK, default=DEFAULT_ENABLE_HEALTH_CHECK, description="Enable health check (disable for single endpoint setups)"): bool,
-        vol.Optional(CONF_HEALTH_CHECK_TIMEOUT, default=DEFAULT_HEALTH_CHECK_TIMEOUT, description="Health check timeout (seconds)"): float,
-        vol.Optional(CONF_CHAT_TIMEOUT, default=DEFAULT_CHAT_TIMEOUT, description="Chat completion timeout (seconds)"): float,
+        vol.Optional(
+            CONF_HEALTH_CHECK_TIMEOUT,
+            default=DEFAULT_HEALTH_CHECK_TIMEOUT,
+            description="Health check timeout (seconds)"
+        ): NumberSelector(NumberSelectorConfig(min=1, max=120, step=0.5)),
+        vol.Optional(
+            CONF_CHAT_TIMEOUT,
+            default=DEFAULT_CHAT_TIMEOUT,
+            description="Chat completion timeout (seconds)"
+        ): NumberSelector(NumberSelectorConfig(min=5, max=600, step=1)),
     }
 )
 
