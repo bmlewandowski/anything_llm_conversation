@@ -45,6 +45,10 @@ from .const import (
     CONF_ENABLE_AGENT_PREFIX,
     CONF_AGENT_KEYWORDS,
     CONF_ENABLE_HEALTH_CHECK,
+    CONF_HEALTH_CHECK_TIMEOUT,
+    DEFAULT_HEALTH_CHECK_TIMEOUT,
+    CONF_CHAT_TIMEOUT,
+    DEFAULT_CHAT_TIMEOUT,
     DEFAULT_ATTACH_USERNAME,
     DEFAULT_WORKSPACE_SLUG,
     DEFAULT_CONF_BASE_URL,
@@ -75,6 +79,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_FAILOVER_BASE_URL, description="Failover Base URL"): str,
         vol.Optional(CONF_FAILOVER_WORKSPACE_SLUG, description="Failover Workspace Slug"): str,
         vol.Optional(CONF_ENABLE_HEALTH_CHECK, default=DEFAULT_ENABLE_HEALTH_CHECK, description="Enable health check (disable for single endpoint setups)"): bool,
+        vol.Optional(CONF_HEALTH_CHECK_TIMEOUT, default=DEFAULT_HEALTH_CHECK_TIMEOUT, description="Health check timeout (seconds)"): float,
+        vol.Optional(CONF_CHAT_TIMEOUT, default=DEFAULT_CHAT_TIMEOUT, description="Chat completion timeout (seconds)"): float,
     }
 )
 
@@ -91,6 +97,8 @@ DEFAULT_OPTIONS = types.MappingProxyType(
         CONF_ENABLE_AGENT_PREFIX: DEFAULT_ENABLE_AGENT_PREFIX,
         CONF_AGENT_KEYWORDS: DEFAULT_AGENT_KEYWORDS,
         CONF_ENABLE_HEALTH_CHECK: DEFAULT_ENABLE_HEALTH_CHECK,
+        CONF_HEALTH_CHECK_TIMEOUT: DEFAULT_HEALTH_CHECK_TIMEOUT,
+        CONF_CHAT_TIMEOUT: DEFAULT_CHAT_TIMEOUT,
     }
 )
 

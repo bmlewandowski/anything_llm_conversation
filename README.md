@@ -356,6 +356,27 @@ When disabled, the integration skips the ~3-second health check before each conv
 - Your AnythingLLM server experiences occasional downtime
 
 
+### Configurable Timeouts
+
+You can now configure the following timeouts in the integration and agent options:
+
+- **Health Check Timeout**: How long to wait for endpoint health checks (default: 3 seconds)
+- **Chat Completion Timeout**: How long to wait for chat completion responses (default: 45 seconds)
+
+To adjust these:
+1. Go to **Settings** → **Devices & Services** → **AnythingLLM Conversation**
+2. Click **Configure** on your integration or agent
+3. Set your desired values for **Health Check Timeout** and **Chat Completion Timeout** (in seconds)
+4. Click **Submit**
+
+**Use Cases:**
+- Lower the health check timeout for faster failover detection
+- Increase chat completion timeout for longer, more complex responses
+- Tune timeouts to match your server/network performance
+
+These settings are used for all API calls and can be changed at any time for optimal performance.
+
+
 ## API Endpoint Structure
 
 

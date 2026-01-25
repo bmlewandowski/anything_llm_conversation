@@ -60,6 +60,8 @@ async def async_setup_entry(
             failover_workspace_slug=entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG),
             failover_thread_slug=entry.options.get(CONF_FAILOVER_THREAD_SLUG),
             enable_health_check=entry.data.get(CONF_ENABLE_HEALTH_CHECK, DEFAULT_ENABLE_HEALTH_CHECK),
+            health_check_timeout=float(entry.data.get("health_check_timeout", 3.0)),
+            chat_timeout=float(entry.data.get("chat_timeout", 60.0)),
         )
     except Exception as err:
         _LOGGER.error("Failed to connect to AnythingLLM: %s", err)

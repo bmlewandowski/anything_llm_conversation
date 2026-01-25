@@ -130,6 +130,8 @@ class AnythingLLMClient:
         failover_workspace_slug: str | None = None,
         failover_thread_slug: str | None = None,
         enable_health_check: bool = True,
+        health_check_timeout: float = DEFAULT_HEALTH_CHECK_TIMEOUT,
+        chat_timeout: float = DEFAULT_CHAT_TIMEOUT,
     ):
         """Initialize AnythingLLM client."""
         self.hass = hass
@@ -141,6 +143,8 @@ class AnythingLLMClient:
         self.failover_workspace_slug = failover_workspace_slug
         self.failover_thread_slug = failover_thread_slug
         self.enable_health_check = enable_health_check
+        self.health_check_timeout = health_check_timeout
+        self.chat_timeout = chat_timeout
         self.http_client = get_async_client(hass)
         self.using_failover = False
 
@@ -153,7 +157,7 @@ class AnythingLLMClient:
             response = await self.http_client.get(
                 health_url,
                 headers={"Authorization": f"Bearer {api_key}"},
-                timeout=DEFAULT_HEALTH_CHECK_TIMEOUT,
+                timeout=self.health_check_timeout,
             )
             return response.status_code in (200, 401, 403)  # 401/403 means endpoint is up but auth issue
         except Exception as err:
@@ -259,7 +263,7 @@ class AnythingLLMClient:
                     chat_url,
                     json=payload,
                     headers=headers,
-                    timeout=DEFAULT_CHAT_TIMEOUT,
+                    timeout=self.chat_timeout,
                 )
                 _LOGGER.debug("AnythingLLM response status: %s, body: %s", response.status_code, response.text[:500])
                 response.raise_for_status()
@@ -325,6 +329,12 @@ async def get_anythingllm_client(
         failover_workspace_slug,
         failover_thread_slug,
         enable_health_check,
+        health_check_timeout=float(
+            hass.data.get(CONF_HEALTH_CHECK_TIMEOUT, DEFAULT_HEALTH_CHECK_TIMEOUT)
+        ) if hasattr(hass, "data") and CONF_HEALTH_CHECK_TIMEOUT in getattr(hass, "data", {}) else DEFAULT_HEALTH_CHECK_TIMEOUT,
+        chat_timeout=float(
+            hass.data.get(CONF_CHAT_TIMEOUT, DEFAULT_CHAT_TIMEOUT)
+        ) if hasattr(hass, "data") and CONF_CHAT_TIMEOUT in getattr(hass, "data", {}) else DEFAULT_CHAT_TIMEOUT,
     )
     
     # Skip health check during setup - it will be done at conversation time
