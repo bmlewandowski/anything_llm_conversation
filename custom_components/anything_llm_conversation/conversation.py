@@ -384,7 +384,16 @@ class AnythingLLMAgentEntity(
         
         # If we found a workspace switch request
         if new_workspace:
-            new_workspace_lower = new_workspace.lower()
+            # Sanitize workspace name: strip surrounding whitespace/punctuation,
+            # normalize spaces to hyphens, and lowercase. This prevents trailing
+            # punctuation from voice input (e.g. "finance.") from becoming part
+            # of the workspace slug used for API calls.
+            new_workspace = new_workspace.strip()
+            # Remove leading/trailing characters that aren't letters, digits, underscore or hyphen
+            new_workspace = re.sub(r'^[^A-Za-z0-9_-]+|[^A-Za-z0-9_-]+$', '', new_workspace)
+            # Replace inner spaces with hyphens and normalize to lowercase
+            new_workspace = new_workspace.replace(' ', '-').lower()
+            new_workspace_lower = new_workspace
             
             # Handle "default" keyword to return to primary workspace
             if new_workspace_lower == "default":

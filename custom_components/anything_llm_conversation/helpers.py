@@ -261,7 +261,7 @@ class AnythingLLMClient:
             payload["prompt"] = system_prompt
 
         # DEBUG: Uncomment the next line to log the outgoing payload (including prompt)
-        # _LOGGER.debug("Outgoing AnythingLLM payload: %r", payload)
+        _LOGGER.debug("Outgoing AnythingLLM payload: %r", payload)
         
         headers = {
             "Authorization": f"Bearer {api_key}",
