@@ -33,7 +33,8 @@ def detect_mode_switch(user_input: str) -> str | None:
     
     Returns the mode key (e.g., 'analysis', 'research') if detected, None otherwise.
     """
-    input_lower = user_input.lower().strip()
+    # Sanitize input: trim whitespace and trailing periods
+    input_lower = user_input.lower().strip().rstrip(".")
     
     # Check each mode's keywords
     for mode_key, keywords in MODE_KEYWORDS.items():
