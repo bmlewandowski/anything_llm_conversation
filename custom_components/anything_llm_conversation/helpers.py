@@ -247,10 +247,18 @@ class AnythingLLMClient:
         
         _LOGGER.info("API URL: %s", chat_url)
         
+        # Extract the system prompt (first message with role 'system')
+        system_prompt = None
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_prompt = msg.get("content")
+                break
         payload = {
             "message": messages[-1]["content"] if messages else "",
             "mode": "chat",
         }
+        if system_prompt:
+            payload["prompt"] = system_prompt
         
         headers = {
             "Authorization": f"Bearer {api_key}",
