@@ -234,17 +234,31 @@ class AnythingLLMAgentEntity(
         messages.append(user_message)
 
         try:
-            # Get conversation-specific workspace or use default
+            # Determine which workspace and thread slug to use
             active_workspace = self.conversation_workspaces.get(conversation_id)
-            # Get conversation-specific thread override (None means use default for that workspace)
-            active_thread = self.conversation_threads.get(conversation_id) if conversation_id in self.conversation_threads else None
-            _LOGGER.info(
-                "Using workspace '%s' for conversation %s (workspace override: %s, thread override: %s)",
-                active_workspace or "default",
-                conversation_id,
-                "Yes" if active_workspace else "No",
-                "None (workspace default)" if active_thread is None and conversation_id in self.conversation_threads else "configured"
-            )
+            opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+            data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+            default_workspace = opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+
+            # If using a custom workspace (not the default), use built-in thread (None)
+            if active_workspace and active_workspace != default_workspace:
+                active_thread = None
+                _LOGGER.info(
+                    "Using custom workspace '%s' for conversation %s (built-in thread)",
+                    active_workspace,
+                    conversation_id,
+                )
+            else:
+                # Using the default workspace, use the configured thread slug (primary or failover)
+                active_workspace = default_workspace
+                active_thread = self.options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG)
+                _LOGGER.info(
+                    "Using default workspace '%s' for conversation %s (thread: %s)",
+                    active_workspace,
+                    conversation_id,
+                    active_thread or "None",
+                )
+
             query_response = await self.query(user_input, messages, active_workspace, active_thread)
         except Exception as err:
             _LOGGER.error(err)
