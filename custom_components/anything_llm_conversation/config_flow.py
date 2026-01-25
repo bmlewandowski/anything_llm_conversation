@@ -135,8 +135,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         failover_api_key=failover_api_key,
         failover_base_url=failover_base_url,
         failover_workspace_slug=failover_workspace_slug,
-        health_check_timeout=health_check_timeout,
-        chat_timeout=chat_timeout,
     )
 
 
@@ -166,8 +164,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 title=user_input.get(CONF_NAME, DEFAULT_NAME),
                 data={
                     **user_input,
-                    CONF_HEALTH_CHECK_TIMEOUT: health_check_timeout,
-                    CONF_CHAT_TIMEOUT: chat_timeout,
+                    CONF_HEALTH_CHECK_TIMEOUT: float(user_input.get(CONF_HEALTH_CHECK_TIMEOUT, DEFAULT_HEALTH_CHECK_TIMEOUT)),
+                    CONF_CHAT_TIMEOUT: float(user_input.get(CONF_CHAT_TIMEOUT, DEFAULT_CHAT_TIMEOUT)),
                 },
                 subentries=[
                     {

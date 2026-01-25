@@ -8,6 +8,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.httpx_client import get_async_client
 
 from .const import (
+    CONF_HEALTH_CHECK_TIMEOUT,
+    CONF_CHAT_TIMEOUT,
     DEFAULT_HEALTH_CHECK_TIMEOUT,
     DEFAULT_CHAT_TIMEOUT,
 )
