@@ -361,7 +361,7 @@ When disabled, the integration skips the ~3-second health check before each conv
 You can now configure the following timeouts in the integration and agent options:
 
 - **Health Check Timeout**: How long to wait for endpoint health checks (default: 3 seconds)
-- **Chat Completion Timeout**: How long to wait for chat completion responses (default: 45 seconds)
+- **Chat Completion Timeout**: How long to wait for chat completion responses (default: 60 seconds)
 
 To adjust these:
 1. Go to **Settings** → **Devices & Services** → **AnythingLLM Conversation**

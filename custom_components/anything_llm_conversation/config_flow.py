@@ -115,6 +115,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     failover_base_url = data.get(CONF_FAILOVER_BASE_URL)
     failover_workspace_slug = data.get(CONF_FAILOVER_WORKSPACE_SLUG)
 
+    # Ensure timeouts are float
+    health_check_timeout = float(data.get(CONF_HEALTH_CHECK_TIMEOUT, DEFAULT_HEALTH_CHECK_TIMEOUT))
+    chat_timeout = float(data.get(CONF_CHAT_TIMEOUT, DEFAULT_CHAT_TIMEOUT))
+
     await get_anythingllm_client(
         hass=hass,
         api_key=api_key,
@@ -123,6 +127,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         failover_api_key=failover_api_key,
         failover_base_url=failover_base_url,
         failover_workspace_slug=failover_workspace_slug,
+        health_check_timeout=health_check_timeout,
+        chat_timeout=chat_timeout,
     )
 
 
@@ -150,7 +156,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         else:
             return self.async_create_entry(
                 title=user_input.get(CONF_NAME, DEFAULT_NAME),
-                data=user_input,
+                data={
+                    **user_input,
+                    CONF_HEALTH_CHECK_TIMEOUT: health_check_timeout,
+                    CONF_CHAT_TIMEOUT: chat_timeout,
+                },
                 subentries=[
                     {
                         "subentry_type": "conversation",

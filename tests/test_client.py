@@ -100,7 +100,7 @@ class MockAnythingLLMClient:
             chat_url,
             headers={"Authorization": f"Bearer {api_key}"},
             json=payload,
-            timeout=45.0,
+            timeout=60.0,
         )
         
         if response.status_code != 200:
