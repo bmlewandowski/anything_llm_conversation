@@ -84,7 +84,12 @@ def clean_response_for_tts(text: str) -> str:
     # Clean up stray leading punctuation that may remain after tag removal
     text = text.strip()
     text = text.lstrip('.,;:!?-')  # Remove leading punctuation
-    
+
+    # Remove a single leading period/dot if present (after other leading punctuation is stripped)
+    if text.startswith('.'):
+        text = text[1:]
+        text = text.lstrip()  # Remove any space after the dot
+
     return text.strip()
 
 
