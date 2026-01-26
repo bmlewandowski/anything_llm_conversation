@@ -6,6 +6,7 @@ MODE_KEYWORDS = {
     "research": ["research mode", "researcher mode"],
     "code_review": ["code review mode", "review mode", "code mode"],
     "troubleshooting": ["troubleshooting mode", "debug mode", "fix mode", "troubleshoot mode"],
+    "security": ["security mode", "secure mode", "alarm mode", "security system"],
     "guest": ["guest mode", "visitor mode", "simple mode"],
     "default": ["default mode", "normal mode", "standard mode"]
 }
@@ -115,6 +116,13 @@ MODE_SUGGESTION_PATTERNS = {
         # Symptoms
         "keeps turning off", "keeps disconnecting", "randomly stops", "intermittent",
         "stuck", "frozen", "hanging", "not updating", "wrong status",
+    ],
+    "security": [
+        "arm system", "disarm system", "security status", "alarm triggered",
+        "intruder", "breach", "motion detected", "window open", "door open",
+        "security camera", "surveillance", "lock doors", "unlock doors",
+        "enable alarm", "disable alarm", "security alert", "panic button",
+        "is my home secure", "is the house locked", "security event",
     ],
 }
 

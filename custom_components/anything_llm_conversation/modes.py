@@ -59,6 +59,17 @@ When the user says {mode_names}, acknowledge the switch and change your behavior
 If asked "what mode" or "what mode are you in", respond "I'm currently in {mode_display_name}."
 """
 
+PROMPT_MODES["security"] = {
+    "name": "Security Mode",
+    "system_prompt": BASE_PERSONA.replace(
+        "{mode_specific_behavior}",
+        "In Security Mode, focus on home security, alarm status, intrusion detection, and device locking/unlocking. Always confirm before arming/disarming systems or unlocking doors. Respond with clear, concise security information."
+    ).replace(
+        "{mode_names}", '"security mode", "secure mode", "alarm mode", "security system"'
+    ).replace(
+        "{mode_display_name}", "Security Mode"
+    )
+}
 # Mode-specific behavioral overlays
 MODE_BEHAVIORS = {
     "default": {
