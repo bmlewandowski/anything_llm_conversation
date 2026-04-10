@@ -269,6 +269,9 @@ class AnythingLLMClient:
             "Content-Type": "application/json",
         }
 
+        # Fallback URL without thread slug (used if thread returns 500)
+        workspace_only_url = f"{base_url}/v1/workspace/{final_workspace_slug}/chat"
+
         # Try up to 2 times on the selected endpoint
         max_retries = 2
         for attempt in range(max_retries):
@@ -280,6 +283,29 @@ class AnythingLLMClient:
                     timeout=self.chat_timeout,
                 )
                 _LOGGER.debug("AnythingLLM response status: %s, body: %s", response.status_code, response.text[:500])
+
+                # If the server returns 500 on a thread endpoint, the thread likely no longer
+                # exists (e.g. after a server restart).  Retry immediately against the
+                # workspace-level endpoint so the user gets a response rather than an error.
+                if response.status_code == 500 and active_thread_slug and chat_url != workspace_only_url:
+                    _LOGGER.warning(
+                        "500 error on thread endpoint '%s' (thread may no longer exist), "
+                        "retrying without thread slug against %s",
+                        chat_url,
+                        workspace_only_url,
+                    )
+                    response = await self.http_client.post(
+                        workspace_only_url,
+                        json=payload,
+                        headers=headers,
+                        timeout=self.chat_timeout,
+                    )
+                    _LOGGER.debug(
+                        "Workspace-only fallback response status: %s, body: %s",
+                        response.status_code,
+                        response.text[:500],
+                    )
+
                 response.raise_for_status()
                 return response.json()
             except Exception as err:
@@ -356,5 +382,3 @@ async def get_anythingllm_client(
     _LOGGER.info("AnythingLLM client created for %s (health check will occur at conversation time)", base_url)
     
     return client
-
-

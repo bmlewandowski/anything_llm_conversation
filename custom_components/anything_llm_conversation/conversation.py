@@ -635,13 +635,32 @@ class AnythingLLMAgentEntity(
             _LOGGER.error("Error from AnythingLLM: %s", err)
             raise
 
-        _LOGGER.debug("Received response from AnythingLLM (type: %s)", response.get("type", "unknown"))
+        response_type = response.get("type", "unknown")
+        _LOGGER.debug("Received response from AnythingLLM (type: %s)", response_type)
+
+        # Handle abort responses from AnythingLLM (e.g. LLM context window exceeded,
+        # model timed out, or input rejected). The response contains an 'error' field
+        # with a human-readable reason.
+        if response_type == "abort":
+            abort_reason = response.get("error") or "No text completion could be completed with this input."
+            prompt_tokens = response.get("metrics", {}).get("prompt_tokens")
+            _LOGGER.error(
+                "AnythingLLM aborted request: %s (prompt_tokens=%s). "
+                "If prompt_tokens is high, reduce the number of exposed entities or use a model with a larger context window.",
+                abort_reason,
+                prompt_tokens,
+            )
+            raise HomeAssistantError(f"AnythingLLM aborted: {abort_reason}")
 
         # Extract the text response from AnythingLLM
         # AnythingLLM returns: {"textResponse": "...", "type": "chat", ...}
-        text_response = response.get("textResponse", "")
-        
+        # Some versions/agent modes return "text" instead of "textResponse"
+        text_response = response.get("textResponse") or response.get("text", "")
+
         if not text_response:
+            _LOGGER.error(
+                "Empty response from AnythingLLM. Full response payload: %s", response
+            )
             raise HomeAssistantError("Empty response from AnythingLLM")
 
         # Remove <think> tags before sending to TTS
