@@ -1,5 +1,7 @@
 """Pattern matching data for mode suggestions and detection."""
 
+import re
+
 # Mode detection keywords - explicit mode switching commands
 MODE_KEYWORDS = {
     "analysis": ["analysis mode", "analyzer mode", "analyze mode"],
@@ -129,3 +131,14 @@ MODE_SUGGESTION_PATTERNS = {
 # Minimum confidence threshold for mode suggestions
 # How many pattern matches needed before suggesting a mode
 MODE_SUGGESTION_THRESHOLD = 1  # Suggest if at least 1 pattern matches
+
+# Issue 18: compile each mode's pattern list into a single regex so detect_suggested_modes
+# scans the input text once per mode instead of doing N individual substring checks.
+# Patterns sorted longest-first so multi-word phrases take priority in alternation.
+_MODE_PATTERN_REGEXES: dict[str, re.Pattern] = {
+    mode_key: re.compile(
+        r"(?:" + "|".join(re.escape(p) for p in sorted(patterns, key=len, reverse=True)) + r")",
+        re.IGNORECASE,
+    )
+    for mode_key, patterns in MODE_SUGGESTION_PATTERNS.items()
+}

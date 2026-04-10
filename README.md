@@ -20,6 +20,9 @@ AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent
 - **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
 - **Enable Agents**: Utilizes AnythingLLM workspaces to use agents to perform web searches, scrape websites, connect to SQL, etc.
 - **Use MCP Servers**: Enables MCP Servers through AnythingLLM workspaces to expose additional api based tools
+- **Connectivity Sensor**: Binary sensor reflects live health of your primary AnythingLLM endpoint for use in automations
+- **Conversation History**: Messages are logged to the Home Assistant Assist panel so full conversation history is visible in the UI
+- **State Persistence**: Active mode, workspace, and thread are stored in `.storage` and restored automatically after a Home Assistant reload
 
 
 ## How It Works
@@ -46,7 +49,7 @@ Customize your AI assistant's behavior for different use cases by simply saying 
 *Manual Mode Switching:*
 ```
 User: "Switch to analysis mode"
-Assistant: "Switching to Analysis Mode."
+Assistant: "Switched to Analysis Mode. How can I help you?"
 User: "What's my energy usage pattern?"
 Assistant: [Provides detailed analytical response]
 ```
@@ -56,10 +59,14 @@ Assistant: [Provides detailed analytical response]
 User: "Why is my energy bill so high?"
 Assistant: "Would you like me to switch to Analysis Mode for a detailed energy usage breakdown?"
 User: "Yes"
-Assistant: "Switching to Analysis Mode. Let me analyze your energy consumption patterns..."
+Assistant: "Switching to Analysis Mode. How can I help you?"
+User: "Show me this month vs last month"
+Assistant: [Provides detailed analytical response in Analysis Mode]
 ```
 
-For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](MODE_SWITCHING.md).
+> **Note**: Replying with "yes", "sure", "ok", "go ahead", "absolutely", or similar to a mode suggestion is handled locally — no extra API call is made.
+
+For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](docs/MODE_SWITCHING.md) *(coming soon)*.
 
 ### Dynamic Workspace Switching
 
@@ -115,6 +122,26 @@ User: "Use default workspace"
 Assistant: "Switched back to default workspace. How can I help you?"
 User: "Turn on the living room lights"
 Assistant: [Back to your primary home automation workspace]
+```
+
+
+### Thread Reset Service
+
+
+You can reset the active AnythingLLM thread for a conversation agent at any time using the `anything_llm_conversation.reset_thread` service. This clears the current thread context, causing the next message to start a fresh conversation.
+
+
+**Service**: `anything_llm_conversation.reset_thread`
+
+**Fields:**
+- `config_entry` *(required)*: The config entry ID of the AnythingLLM integration to target
+- `conversation_id` *(optional)*: Specific conversation ID to reset. If omitted, resets the thread for all active conversations on that entry
+
+**Example:**
+```yaml
+service: anything_llm_conversation.reset_thread
+data:
+  config_entry: "<your_config_entry_id>"
 ```
 
 
@@ -312,27 +339,40 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
 ## Failover Functionality
 
 
-The integration includes built-in endpoint monitoring and automatic failover:
+The integration includes built-in background endpoint monitoring and automatic failover:
 
 
-1. **At conversation time** (when you send a message), the integration checks if the primary endpoint is responding
-2. If the primary endpoint is unavailable, it automatically switches to the failover endpoint
+1. A background task checks the primary endpoint every **30 seconds** and caches the result
+2. If the primary endpoint is unavailable, the next conversation automatically routes to the failover endpoint
 3. The failover request includes automatic retry logic (up to 2 attempts with exponential backoff)
 4. If the failover fails, it tries the primary endpoint one more time before giving up
-5. When the primary endpoint comes back online, it automatically switches back
+5. When the primary endpoint comes back online, the background monitor detects it and switches back automatically
 6. All endpoint switches are logged for monitoring
+7. Voice requests never block waiting for a health check — the cached result is used immediately
 
 
 This ensures uninterrupted voice assistant functionality even if one AnythingLLM server goes offline.
 
 
-**Note**: Health checks occur at conversation time, not during installation. This allows you to install the integration even when your AnythingLLM servers are temporarily offline.
+**Note**: The integration starts the background health monitor as soon as it loads, so voice commands are never delayed by health checks.
+
+
+### Connectivity Sensor
+
+
+When the integration loads, it creates a **binary sensor** that reflects the live health of your primary AnythingLLM endpoint:
+
+- **Entity**: `binary_sensor.<name>_connectivity`
+- **On (Connected)**: Primary endpoint responded to the last health check
+- **Off (Disconnected)**: Primary endpoint is unreachable
+
+You can use this sensor in automations to alert you when your AnythingLLM server goes offline or comes back online.
 
 
 ### Disabling Health Checks
 
 
-If you're using only a single AnythingLLM endpoint without failover, you can disable health checks to improve performance:
+If you're using only a single AnythingLLM endpoint without failover, you can disable health checks:
 
 
 1. Navigate to **Settings** → **Devices & Services** → **AnythingLLM Conversation**
@@ -341,19 +381,18 @@ If you're using only a single AnythingLLM endpoint without failover, you can dis
 4. Click **Submit**
 
 
-When disabled, the integration skips the ~3-second health check before each conversation and always uses the primary endpoint. This is recommended for single-endpoint setups where failover functionality is not needed.
+When disabled, the integration skips background health monitoring and always uses the primary endpoint. Because health checks now run in the background (not at conversation time), disabling them has no meaningful effect on voice response latency — this option is mainly useful for reducing API polling when failover is not configured.
 
 
 **Benefits of disabling health checks:**
-- Faster response times (~3 seconds saved per conversation)
-- Reduced API calls to your AnythingLLM server
+- Reduced periodic API calls to your AnythingLLM server
 - Simpler behavior when failover isn't configured
 
 
 **Keep health checks enabled if:**
 - You have a failover endpoint configured
 - You need automatic endpoint switching for high availability
-- Your AnythingLLM server experiences occasional downtime
+- You want the connectivity binary sensor to stay up to date
 
 
 ### Configurable Timeouts

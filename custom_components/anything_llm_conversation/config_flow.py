@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import types
 from typing import Any
 
@@ -118,10 +119,16 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """
     api_key = data[CONF_API_KEY]
     base_url = data.get(CONF_BASE_URL, DEFAULT_CONF_BASE_URL)
-    workspace_slug = data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+    raw_slug = data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+    workspace_slug = re.sub(r'[^a-z0-9_-]', '-', raw_slug.lower().strip())
     failover_api_key = data.get(CONF_FAILOVER_API_KEY)
     failover_base_url = data.get(CONF_FAILOVER_BASE_URL)
-    failover_workspace_slug = data.get(CONF_FAILOVER_WORKSPACE_SLUG)
+    raw_failover_slug = data.get(CONF_FAILOVER_WORKSPACE_SLUG)
+    failover_workspace_slug = (
+        re.sub(r'[^a-z0-9_-]', '-', raw_failover_slug.lower().strip())
+        if raw_failover_slug
+        else None
+    )
 
     # Ensure timeouts are float
     health_check_timeout = float(data.get(CONF_HEALTH_CHECK_TIMEOUT, DEFAULT_HEALTH_CHECK_TIMEOUT))
@@ -135,6 +142,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         failover_api_key=failover_api_key,
         failover_base_url=failover_base_url,
         failover_workspace_slug=failover_workspace_slug,
+        health_check_timeout=health_check_timeout,
+        chat_timeout=chat_timeout,
     )
 
 

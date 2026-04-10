@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Callable
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -16,7 +17,7 @@ from .const import (
 from .mode_patterns import (
     MODE_KEYWORDS,
     MODE_QUERY_KEYWORDS,
-    MODE_SUGGESTION_PATTERNS,
+    _MODE_PATTERN_REGEXES,
     MODE_SUGGESTION_THRESHOLD,
 )
 from .modes import (
@@ -65,15 +66,14 @@ def detect_suggested_modes(user_input: str, current_mode: str) -> list[str]:
     """
     input_lower = user_input.lower().strip()
     mode_scores = {}
-    
-    # Count pattern matches for each mode
-    for mode_key, patterns in MODE_SUGGESTION_PATTERNS.items():
-        # Skip current mode - don't suggest switching to same mode
+
+    # Issue 18: use pre-compiled regex per mode — single scan instead of N `in` checks.
+    for mode_key, pattern_re in _MODE_PATTERN_REGEXES.items():
         if mode_key == current_mode:
             continue
-            
-        match_count = sum(1 for pattern in patterns if pattern in input_lower)
-        
+
+        match_count = len(pattern_re.findall(input_lower))
+
         if match_count >= MODE_SUGGESTION_THRESHOLD:
             mode_scores[mode_key] = match_count
     
@@ -151,47 +151,112 @@ class AnythingLLMClient:
         self.http_client = get_async_client(hass)
         self.using_failover = False
 
-    async def check_endpoint_health(self, base_url: str, api_key: str) -> bool:
-        """Check if AnythingLLM endpoint is active."""
+        # Cached health state — updated by background task, never blocks a request.
+        # None means "not yet checked"; True/False = last known result.
+        self._primary_healthy: bool | None = None
+        self._health_check_interval: float = 30.0  # seconds between background checks
+        self._health_task: asyncio.Task | None = None
+        self._health_stop: asyncio.Event = asyncio.Event()
+        # Callbacks notified whenever _primary_healthy changes (e.g. binary sensor).
+        self._health_listeners: list[Callable[[bool | None], None]] = []
+
+    def add_health_listener(self, callback: Callable[[bool | None], None]) -> None:
+        """Register a callback invoked whenever _primary_healthy changes."""
+        self._health_listeners.append(callback)
+
+    def remove_health_listener(self, callback: Callable[[bool | None], None]) -> None:
+        """Deregister a previously registered health callback."""
         try:
-            # Try to ping the API - AnythingLLM may not have a dedicated health endpoint
-            # So we'll try a simple workspace list or system endpoint
+            self._health_listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def start_health_monitor(self) -> None:
+        """Start the background health-check loop. Call once after client creation."""
+        if not self.enable_health_check:
+            return
+        if self._health_task and not self._health_task.done():
+            return
+        self._health_stop.clear()
+        self._health_task = asyncio.ensure_future(self._health_monitor_loop())
+        _LOGGER.debug("Health monitor started for %s", self.base_url)
+
+    def stop_health_monitor(self) -> None:
+        """Stop the background health-check loop."""
+        self._health_stop.set()
+        if self._health_task and not self._health_task.done():
+            self._health_task.cancel()
+        _LOGGER.debug("Health monitor stopped for %s", self.base_url)
+
+    async def _health_monitor_loop(self) -> None:
+        """Periodically check endpoint health and cache the result."""
+        while not self._health_stop.is_set():
+            await self._refresh_health()
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(asyncio.ensure_future(self._health_stop.wait())),
+                    timeout=self._health_check_interval,
+                )
+            except asyncio.TimeoutError:
+                pass  # Normal — interval elapsed, run next check
+            except asyncio.CancelledError:
+                break
+
+    async def _refresh_health(self) -> None:
+        """Run a single health check and update cached state."""
+        primary_healthy = await self._check_endpoint_health(self.base_url, self.api_key)
+        previous = self._primary_healthy
+        if primary_healthy:
+            if self.using_failover:
+                _LOGGER.info("Primary endpoint is back online, switching from failover")
+                self.using_failover = False
+            self._primary_healthy = True
+        else:
+            self._primary_healthy = False
+            if self.failover_base_url and self.failover_api_key:
+                if not self.using_failover:
+                    _LOGGER.warning("Primary endpoint unavailable, switching to failover")
+                    self.using_failover = True
+            else:
+                _LOGGER.warning("Primary endpoint unavailable and no failover configured")
+
+        # Notify listeners when health status changes so UI updates immediately.
+        if self._primary_healthy != previous:
+            for cb in list(self._health_listeners):
+                cb(self._primary_healthy)
+
+    async def _check_endpoint_health(self, base_url: str, api_key: str) -> bool:
+        """Probe an AnythingLLM endpoint. Returns True if reachable."""
+        try:
             health_url = f"{base_url}/v1/system"
             response = await self.http_client.get(
                 health_url,
                 headers={"Authorization": f"Bearer {api_key}"},
                 timeout=self.health_check_timeout,
             )
-            return response.status_code in (200, 401, 403)  # 401/403 means endpoint is up but auth issue
+            return response.status_code in (200, 401, 403)
         except Exception as err:
             _LOGGER.debug("Health check failed for %s: %s", base_url, err)
             return False
 
-    async def get_active_endpoint(self) -> tuple[str, str, str]:
-        """Get active endpoint, failing over if necessary."""
-        # If health checks are disabled, always use primary endpoint
+    def get_active_endpoint(self) -> tuple[str, str, str]:
+        """Return the active endpoint from cached health state (non-blocking)."""
         if not self.enable_health_check:
             return self.base_url, self.api_key, self.workspace_slug
-        
-        # Check primary endpoint
-        primary_healthy = await self.check_endpoint_health(self.base_url, self.api_key)
-        
-        if primary_healthy:
-            if self.using_failover:
-                _LOGGER.info("Primary endpoint is back online, switching from failover")
-                self.using_failover = False
+
+        # If we haven't completed the first check yet, optimistically use primary.
+        if self._primary_healthy is None:
+            _LOGGER.debug("Health not yet checked, optimistically using primary endpoint")
             return self.base_url, self.api_key, self.workspace_slug
 
-        # Primary is down, try failover if configured
-        if self.failover_base_url and self.failover_api_key:
-            _LOGGER.warning("Primary endpoint unavailable, switching to failover")
-            if not self.using_failover:
-                _LOGGER.info("Switched to failover endpoint")
-                self.using_failover = True
-            return self.failover_base_url, self.failover_api_key, self.failover_workspace_slug or self.workspace_slug
-        else:
-            _LOGGER.error("Primary endpoint unavailable and no failover configured")
-            raise HomeAssistantError("AnythingLLM endpoint is unavailable")
+        if self._primary_healthy or not (self.failover_base_url and self.failover_api_key):
+            if not self._primary_healthy:
+                _LOGGER.error("Primary endpoint unavailable and no failover configured")
+                raise HomeAssistantError("AnythingLLM endpoint is unavailable")
+            return self.base_url, self.api_key, self.workspace_slug
+
+        # Primary unhealthy and failover is configured
+        return self.failover_base_url, self.failover_api_key, self.failover_workspace_slug or self.workspace_slug
 
     async def chat_completion(
         self,
@@ -204,7 +269,7 @@ class AnythingLLMClient:
         failover_workspace_slug: str | None = None,
     ) -> dict:
         """Send chat completion request to AnythingLLM."""
-        base_url, api_key, active_workspace_slug = await self.get_active_endpoint()
+        base_url, api_key, active_workspace_slug = self.get_active_endpoint()
         
         # Update failover_thread_slug if provided (allows dynamic updates without client reload)
         if failover_thread_slug is not None:
@@ -258,7 +323,10 @@ class AnythingLLMClient:
             "message": messages[-1]["content"] if messages else "",
             "mode": "chat",
         }
-        if system_prompt:
+        # The 'prompt' override is only supported on workspace-level endpoints.
+        # Thread endpoints manage their own context server-side; sending 'prompt'
+        # to a thread endpoint causes AnythingLLM to return a 500 error.
+        if system_prompt and not active_thread_slug:
             payload["prompt"] = system_prompt
 
         # DEBUG: Uncomment the next line to log the outgoing payload (including prompt)
@@ -268,9 +336,6 @@ class AnythingLLMClient:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-
-        # Fallback URL without thread slug (used if thread returns 500)
-        workspace_only_url = f"{base_url}/v1/workspace/{final_workspace_slug}/chat"
 
         # Try up to 2 times on the selected endpoint
         max_retries = 2
@@ -283,29 +348,24 @@ class AnythingLLMClient:
                     timeout=self.chat_timeout,
                 )
                 _LOGGER.debug("AnythingLLM response status: %s, body: %s", response.status_code, response.text[:500])
-
-                # If the server returns 500 on a thread endpoint, the thread likely no longer
-                # exists (e.g. after a server restart).  Retry immediately against the
-                # workspace-level endpoint so the user gets a response rather than an error.
-                if response.status_code == 500 and active_thread_slug and chat_url != workspace_only_url:
-                    _LOGGER.warning(
-                        "500 error on thread endpoint '%s' (thread may no longer exist), "
-                        "retrying without thread slug against %s",
-                        chat_url,
-                        workspace_only_url,
-                    )
-                    response = await self.http_client.post(
-                        workspace_only_url,
-                        json=payload,
-                        headers=headers,
-                        timeout=self.chat_timeout,
-                    )
-                    _LOGGER.debug(
-                        "Workspace-only fallback response status: %s, body: %s",
+                if not response.is_success:
+                    _LOGGER.error(
+                        "AnythingLLM HTTP %s for %s — response body: %s",
                         response.status_code,
-                        response.text[:500],
+                        chat_url,
+                        response.text[:1000],
                     )
-
+                    # Try to surface AnythingLLM's own error message instead of
+                    # a generic HTTP status error (e.g. "Ollama unreachable")
+                    try:
+                        body = response.json()
+                        server_error = body.get("error")
+                        if server_error:
+                            raise HomeAssistantError(f"AnythingLLM error: {server_error}")
+                    except HomeAssistantError:
+                        raise
+                    except Exception:
+                        pass
                 response.raise_for_status()
                 return response.json()
             except Exception as err:
@@ -357,6 +417,8 @@ async def get_anythingllm_client(
     failover_workspace_slug: str | None = None,
     failover_thread_slug: str | None = None,
     enable_health_check: bool = True,
+    health_check_timeout: float = DEFAULT_HEALTH_CHECK_TIMEOUT,
+    chat_timeout: float = DEFAULT_CHAT_TIMEOUT,
 ) -> AnythingLLMClient:
     """Create and validate AnythingLLM client."""
     client = AnythingLLMClient(
@@ -369,12 +431,8 @@ async def get_anythingllm_client(
         failover_workspace_slug,
         failover_thread_slug,
         enable_health_check,
-        health_check_timeout=float(
-            hass.data.get(CONF_HEALTH_CHECK_TIMEOUT, DEFAULT_HEALTH_CHECK_TIMEOUT)
-        ) if hasattr(hass, "data") and CONF_HEALTH_CHECK_TIMEOUT in getattr(hass, "data", {}) else DEFAULT_HEALTH_CHECK_TIMEOUT,
-        chat_timeout=float(
-            hass.data.get(CONF_CHAT_TIMEOUT, DEFAULT_CHAT_TIMEOUT)
-        ) if hasattr(hass, "data") and CONF_CHAT_TIMEOUT in getattr(hass, "data", {}) else DEFAULT_CHAT_TIMEOUT,
+        health_check_timeout=health_check_timeout,
+        chat_timeout=chat_timeout,
     )
     
     # Skip health check during setup - it will be done at conversation time
@@ -382,3 +440,5 @@ async def get_anythingllm_client(
     _LOGGER.info("AnythingLLM client created for %s (health check will occur at conversation time)", base_url)
     
     return client
+
+
