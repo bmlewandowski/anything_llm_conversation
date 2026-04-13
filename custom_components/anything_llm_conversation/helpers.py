@@ -24,15 +24,29 @@ from .modes import (
     PROMPT_MODES,
     BASE_PERSONA,
     MODE_BEHAVIORS,
+    get_workspace_prompt_config,
+    get_workspace_display_name,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
+# Legacy mode keys now map to workspace slugs.
+MODE_TO_WORKSPACE = {
+    "analysis": "analysis",
+    "research": "research",
+    "security": "security",
+    "code_review": "investigation",
+    "troubleshooting": "investigation",
+    "guest": "default",
+    "default": "default",
+}
+
+
 def detect_mode_switch(user_input: str) -> str | None:
     """Detect if user input contains mode switch keywords.
     
-    Returns the mode key (e.g., 'analysis', 'research') if detected, None otherwise.
+    Returns a workspace slug (e.g., 'analysis', 'research') if detected, None otherwise.
     """
     # Sanitize input: trim whitespace and trailing periods
     input_lower = user_input.lower().strip().rstrip(".")
@@ -40,7 +54,7 @@ def detect_mode_switch(user_input: str) -> str | None:
     # Check each mode's keywords
     for mode_key, keywords in MODE_KEYWORDS.items():
         if any(keyword in input_lower for keyword in keywords):
-            return mode_key
+            return MODE_TO_WORKSPACE.get(mode_key, mode_key)
     
     return None
 
@@ -66,24 +80,44 @@ def detect_suggested_modes(user_input: str, current_mode: str) -> list[str]:
     """
     input_lower = user_input.lower().strip()
     mode_scores = {}
-
     # Issue 18: use pre-compiled regex per mode — single scan instead of N `in` checks.
     for mode_key, pattern_re in _MODE_PATTERN_REGEXES.items():
-        if mode_key == current_mode:
+        suggested_workspace = MODE_TO_WORKSPACE.get(mode_key, mode_key)
+
+        # Skip current workspace - don't suggest switching to same target
+        if suggested_workspace == current_mode:
             continue
 
         match_count = len(pattern_re.findall(input_lower))
 
         if match_count >= MODE_SUGGESTION_THRESHOLD:
-            mode_scores[mode_key] = match_count
+            mode_scores[suggested_workspace] = mode_scores.get(suggested_workspace, 0) + match_count
     
     # Return modes sorted by match count (highest first)
     return sorted(mode_scores.keys(), key=lambda k: mode_scores[k], reverse=True)
 
 
 def get_mode_name(mode_key: str) -> str:
-    """Get the display name for a mode key."""
-    return PROMPT_MODES.get(mode_key, {}).get("name", "Unknown Mode")
+    """Get the display name for a mode/workspace key."""
+    if mode_key in ("default", "", None):
+        return "Default Workspace"
+    return get_workspace_display_name(mode_key)
+
+
+def get_workspace_prompt(workspace_slug: str | None) -> str | None:
+    """Get a workspace-specific system prompt by slug."""
+    workspace_config = get_workspace_prompt_config(workspace_slug)
+    if workspace_config:
+        return workspace_config["system_prompt"]
+    return None
+
+
+def should_apply_tts_cleaning_for_workspace(workspace_slug: str | None) -> bool:
+    """Return True if TTS cleaning should be applied for this workspace."""
+    workspace_config = get_workspace_prompt_config(workspace_slug)
+    if not workspace_config:
+        return True
+    return workspace_config.get("apply_tts_cleaning", True)
 
 
 def get_mode_prompt(mode_key: str, custom_base_persona: str | None = None) -> str:

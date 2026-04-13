@@ -64,6 +64,9 @@ from .helpers import (
     is_mode_query,
     get_mode_name,
     get_mode_prompt,
+    get_workspace_prompt,
+    get_workspace_prompt_config,
+    should_apply_tts_cleaning_for_workspace,
 )
 from .response_processor import (
     clean_response_for_tts,
@@ -101,7 +104,6 @@ _RESPONSE_MODE_HINTS: dict[str, str] = {
     "security mode": "security",
     "default mode": "default",
 }
-# and be used for prompt injection via entity names/aliases/states.
 # H2: also strip { and } to prevent Jinja2 expression injection from entity names
 # sourced from third-party integrations (Z-Wave, MQTT, cloud bridges).
 _RE_UNSAFE_PROMPT = re.compile(r'[\r\n\t`|{}]')
@@ -110,6 +112,46 @@ _RE_UNSAFE_PROMPT = re.compile(r'[\r\n\t`|{}]')
 def _sanitize_prompt_value(value: str) -> str:
     """Strip control/structural characters from a value before prompt insertion."""
     return _RE_UNSAFE_PROMPT.sub(' ', str(value)).strip()
+
+
+WORKSPACE_SLUG_ALIASES = {
+    "adventure": "adventure",
+    "author": "adventure",
+    "story": "adventure",
+    "creative": "adventure",
+    "analysis": "analysis",
+    "analyze": "analysis",
+    "analyzer": "analysis",
+    "research": "research",
+    "researcher": "research",
+    "visual": "visual",
+    "vision": "visual",
+    "image": "visual",
+    "multimodal": "visual",
+    "investigation": "investigation",
+    "investigate": "investigation",
+    "forensics": "investigation",
+    "root-cause": "investigation",
+    "rootcause": "investigation",
+    "security": "security",
+    "secure": "security",
+    "alarm": "security",
+    "debug": "investigation",
+    "troubleshooting": "investigation",
+    "troubleshoot": "investigation",
+    "code-review": "investigation",
+    "code_review": "investigation",
+    "code": "investigation",
+    "default": "default",
+    "normal": "default",
+    "standard": "default",
+    "jarvis": "default",
+    "general": "default",
+    "assistant": "default",
+    "guest": "default",
+    "simple": "default",
+    "visitor": "default",
+}
 
 
 async def async_setup_entry(
@@ -222,18 +264,17 @@ class AnythingLLMAgentEntity(
         """Call the API."""
         conversation_id = chat_log.conversation_id
         
-        # Get current mode for this conversation (default to "default")
-        current_mode = self.conversation_modes.get(conversation_id, "default")
-        
         # Check for workspace switch command
         workspace_switch_result = self._check_workspace_switch(user_input.text, conversation_id, user_input.language)
         if workspace_switch_result:
             return workspace_switch_result
+
+        current_workspace = self._get_active_workspace(conversation_id)
         
         # Check for mode query first
         if is_mode_query(user_input.text):
-            mode_name = get_mode_name(current_mode)
-            _LOGGER.debug("Mode query detected, current mode: %s", mode_name)
+            mode_name = get_mode_name(current_workspace)
+            _LOGGER.debug("Mode/workspace query detected, current workspace: %s", mode_name)
             
             intent_response = intent.IntentResponse(language=user_input.language)
             intent_response.async_set_speech(f"I'm currently in {mode_name}.")
@@ -242,40 +283,12 @@ class AnythingLLMAgentEntity(
                 response=intent_response, conversation_id=conversation_id
             )
         
-        # Check for mode switch
-        new_mode = detect_mode_switch(user_input.text)
-        if new_mode:
-            old_mode = current_mode
-            _capped_set(self.conversation_modes, conversation_id, new_mode)
-            mode_name = get_mode_name(new_mode)
-            
-            # Clear history when switching modes
-            if conversation_id in self.history:
-                del self.history[conversation_id]
-            if conversation_id in self.conversation_threads:
-                del self.conversation_threads[conversation_id]
-            self._save_state()
-
-            _LOGGER.info(
-                "Mode switched from %s to %s for conversation %s",
-                old_mode,
-                new_mode,
-                conversation_id,
-            )
-            intent_response = intent.IntentResponse(language=user_input.language)
-            intent_response.async_set_speech(
-                f"Switched to {mode_name}. How can I help you?"
-            )
-            return conversation.ConversationResult(
-                response=intent_response, conversation_id=conversation_id
-            )
-
-        # L5: if the previous response suggested a mode switch and this reply is
-        # affirmative, apply the pending mode without sending anything to the API.
+        # L5: if the previous response suggested a workspace switch and this reply
+        # is affirmative, apply the pending switch without an extra API call.
         pending_mode = self._pending_mode_suggestions.pop(conversation_id, None)
         if pending_mode and _RE_AFFIRMATIVE.match(user_input.text):
-            old_mode = current_mode
-            _capped_set(self.conversation_modes, conversation_id, pending_mode)
+            old_workspace = current_workspace
+            _capped_set(self.conversation_workspaces, conversation_id, pending_mode)
             mode_name = get_mode_name(pending_mode)
             if conversation_id in self.history:
                 del self.history[conversation_id]
@@ -283,8 +296,8 @@ class AnythingLLMAgentEntity(
                 del self.conversation_threads[conversation_id]
             self._save_state()
             _LOGGER.info(
-                "Mode switched (via suggestion confirmation) from %s to %s for conversation %s",
-                old_mode,
+                "Workspace switched (via suggestion confirmation) from %s to %s for conversation %s",
+                old_workspace,
                 pending_mode,
                 conversation_id,
             )
@@ -319,6 +332,9 @@ class AnythingLLMAgentEntity(
                 active_thread or "None",
             )
 
+        exposed_entities = self.get_exposed_entities()
+        apply_tts_cleaning = should_apply_tts_cleaning_for_workspace(active_workspace)
+
         if conversation_id in self.history:
             messages = self.history[conversation_id]
         else:
@@ -328,10 +344,12 @@ class AnythingLLMAgentEntity(
                 messages = []
             else:
                 user_input.conversation_id = conversation_id
-                exposed_entities = self.get_exposed_entities()
                 try:
-                    system_message = self._generate_system_message(
-                        exposed_entities, user_input, current_mode
+                    system_message, apply_tts_cleaning = self._generate_system_message(
+                        exposed_entities,
+                        user_input,
+                        "default",
+                        active_workspace,
                     )
                 except TemplateError as err:
                     _LOGGER.error("Error rendering prompt: %s", err)
@@ -343,7 +361,7 @@ class AnythingLLMAgentEntity(
                     return conversation.ConversationResult(
                         response=intent_response, conversation_id=conversation_id
                     )
-                messages = [system_message]
+                messages = [system_message] if system_message is not None else []
 
         # Add @agent prefix if enabled and keywords detected
         user_content = user_input.text
@@ -364,7 +382,9 @@ class AnythingLLMAgentEntity(
         messages.append(user_message)
 
         try:
-            query_response = await self.query(user_input, messages, active_workspace, active_thread)
+            query_response = await self.query(
+                user_input, messages, active_workspace, active_thread, apply_tts_cleaning
+            )
         except Exception as err:
             _LOGGER.error(err)
             intent_response = intent.IntentResponse(language=user_input.language)
@@ -513,6 +533,30 @@ class AnythingLLMAgentEntity(
         # Pattern 5: "switch workspace to <name>"
         elif text_lower.startswith("switch workspace to "):
             new_workspace = text_lower.replace("switch workspace to ", "").strip()
+
+        # Pattern 6: "switch to <name> mode"
+        elif text_lower.startswith("switch to ") and " mode" in text_lower:
+            parts = text_lower.replace("switch to ", "").replace(" mode", "").strip()
+            new_workspace = parts
+
+        # Pattern 7: "use <name> mode"
+        elif text_lower.startswith("use ") and " mode" in text_lower:
+            parts = text_lower.replace("use ", "").replace(" mode", "").strip()
+            new_workspace = parts
+
+        # Pattern 8: "change mode to <name>"
+        elif text_lower.startswith("change mode to "):
+            new_workspace = text_lower.replace("change mode to ", "").strip()
+
+        # Pattern 9: "switch mode to <name>"
+        elif text_lower.startswith("switch mode to "):
+            new_workspace = text_lower.replace("switch mode to ", "").strip()
+
+        # Backwards-compatible mode detection ("analysis mode", "research mode", etc.)
+        elif text_lower.endswith("mode"):
+            inferred_workspace = detect_mode_switch(text_lower)
+            if inferred_workspace:
+                new_workspace = inferred_workspace
         
         # If we found a workspace switch request
         if new_workspace:
@@ -522,12 +566,12 @@ class AnythingLLMAgentEntity(
             # of the workspace slug used for API calls.
             new_workspace = new_workspace.strip().lower()
             # Replace ALL characters that are not letters, digits, underscore, or hyphen
-            # with hyphens. Using an edge-only strip left path separators (e.g. '/') in
-            # the middle of the slug, which were interpolated directly into the URL path
-            # and could be used for path traversal.
+            # with hyphens. Prevents path traversal via slug interpolated into the URL.
             new_workspace = re.sub(r'[^a-z0-9_-]', '-', new_workspace)
             # Collapse repeated hyphens and strip leading/trailing hyphens
             new_workspace = re.sub(r'-+', '-', new_workspace).strip('-')
+            # Normalize common spoken aliases to canonical workspace slugs
+            new_workspace = WORKSPACE_SLUG_ALIASES.get(new_workspace, new_workspace)
             new_workspace_lower = new_workspace
             
             # Handle "default" keyword to return to primary workspace
@@ -602,6 +646,16 @@ class AnythingLLMAgentEntity(
         
         return None
 
+    def _get_default_workspace(self) -> str:
+        """Get the configured default workspace slug."""
+        opt_workspace_slug = self.options.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+        data_workspace_slug = self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
+        return opt_workspace_slug if opt_workspace_slug != DEFAULT_WORKSPACE_SLUG else data_workspace_slug
+
+    def _get_active_workspace(self, conversation_id: str) -> str:
+        """Get currently active workspace slug for this conversation."""
+        return self.conversation_workspaces.get(conversation_id, self._get_default_workspace())
+
     def _should_use_agent_prefix(self, user_text: str) -> bool:
         """Determine if @agent prefix should be added based on keywords."""
         if not self.options.get(CONF_ENABLE_AGENT_PREFIX, DEFAULT_ENABLE_AGENT_PREFIX):
@@ -661,31 +715,41 @@ class AnythingLLMAgentEntity(
         return self.entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)
 
     def _generate_system_message(
-        self, exposed_entities, user_input: conversation.ConversationInput, mode_key: str = "default"
+        self,
+        exposed_entities,
+        user_input: conversation.ConversationInput,
+        mode_key: str = "default",
+        workspace_slug: str | None = None,
     ):
-        # Get user's custom prompt (if any)
-        user_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
-        
-        # If user has customized the prompt, use it as the base persona
-        # Otherwise use the default BASE_PERSONA from const.py
-        if user_prompt != DEFAULT_PROMPT:
-            # User customized - use their prompt as base, but still apply mode behaviors
-            raw_prompt = get_mode_prompt(mode_key, custom_base_persona=user_prompt)
+        apply_tts_cleaning = should_apply_tts_cleaning_for_workspace(workspace_slug)
+        workspace_config = get_workspace_prompt_config(workspace_slug)
+
+        if workspace_config is not None:
+            raw_prompt = workspace_config.get("system_prompt")
+            if raw_prompt is None:
+                # Known workspace with no context block — AnythingLLM owns the full prompt.
+                # Do not send a prompt override; let the workspace system prompt apply natively.
+                return None, apply_tts_cleaning
         else:
-            # Use default mode system
-            raw_prompt = get_mode_prompt(mode_key)
+            # Unknown/unconfigured workspace — fall back to legacy mode system.
+            user_prompt = self.options.get(CONF_PROMPT, DEFAULT_PROMPT)
+            if user_prompt != DEFAULT_PROMPT:
+                raw_prompt = get_mode_prompt(mode_key, custom_base_persona=user_prompt)
+            else:
+                raw_prompt = get_mode_prompt(mode_key)
         
-        # Detect if query patterns suggest a different mode might be helpful
-        suggested_modes = detect_suggested_modes(user_input.text, mode_key)
+        # Detect if query patterns suggest a different workspace might be helpful
+        suggestion_context = workspace_slug or mode_key
+        suggested_modes = detect_suggested_modes(user_input.text, suggestion_context)
         if suggested_modes:
             # Add a hint to the prompt (AI still decides whether to suggest)
             mode_names = ", ".join([get_mode_name(m) for m in suggested_modes[:2]])  # Top 2 matches
-            mode_hint = f"\n\n[SYSTEM HINT: User query patterns suggest {mode_names} might be relevant for this question. Consider offering to switch if appropriate.]"
+            mode_hint = f"\n\n[SYSTEM HINT: User query patterns suggest {mode_names} might be relevant for this question. Consider offering to switch workspace if appropriate.]"
             raw_prompt = raw_prompt + mode_hint
             _LOGGER.debug("Pattern match detected - suggesting modes: %s", mode_names)
         
-        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key)
-        return {"role": "system", "content": prompt}
+        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key, workspace_slug)
+        return {"role": "system", "content": prompt}, apply_tts_cleaning
 
     def _async_generate_prompt(
         self,
@@ -693,6 +757,7 @@ class AnythingLLMAgentEntity(
         exposed_entities,
         user_input: conversation.ConversationInput,
         mode_key: str = "default",
+        workspace_slug: str | None = None,
     ) -> str:
         """Generate a prompt for the user."""
         # Prompt is rendered fresh every call — it embeds live entity states so
@@ -758,6 +823,7 @@ class AnythingLLMAgentEntity(
         messages: list[dict],
         workspace_override: str | None = None,
         thread_override: str | None | bool = False,
+        apply_tts_cleaning: bool = True,
     ) -> QueryResponse:
         """Process a sentence."""
         # Use workspace override if provided (from conversation-specific workspace)
@@ -818,7 +884,8 @@ class AnythingLLMAgentEntity(
             )
             raise HomeAssistantError("Empty response from AnythingLLM")
 
-        # Remove <think> tags before sending to TTS
-        text_response = clean_response_for_tts(text_response)
+        # Only apply strict TTS cleanup in the default/JARVIS workspace.
+        if apply_tts_cleaning:
+            text_response = clean_response_for_tts(text_response)
 
         return QueryResponse(response=response, text=text_response)

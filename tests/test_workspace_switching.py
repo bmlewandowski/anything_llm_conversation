@@ -36,6 +36,17 @@ class TestWorkspaceSwitching:
         assert result is not None
         assert mock_entity.conversation_workspaces.get("conv_123") == "finance"
 
+    def test_mode_phrase_switch_alias(self, mock_entity):
+        """Test that mode switch phrases map to workspace switching."""
+        result = mock_entity._check_workspace_switch(
+            "switch to research mode",
+            "conv_123",
+            "en",
+        )
+
+        assert result is not None
+        assert mock_entity.conversation_workspaces.get("conv_123") == "research"
+
     def test_workspace_query_command(self, mock_entity):
         """Test workspace query command."""
         # Set a workspace first

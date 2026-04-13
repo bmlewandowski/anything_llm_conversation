@@ -4,8 +4,11 @@ import re
 
 # Mode detection keywords - explicit mode switching commands
 MODE_KEYWORDS = {
+    "adventure": ["adventure mode", "author mode", "story mode", "creative mode"],
     "analysis": ["analysis mode", "analyzer mode", "analyze mode"],
     "research": ["research mode", "researcher mode"],
+    "visual": ["visual mode", "vision mode", "image mode", "multimodal mode"],
+    "investigation": ["investigation mode", "investigate mode", "forensics mode", "root cause mode"],
     "code_review": ["code review mode", "review mode", "code mode"],
     "troubleshooting": ["troubleshooting mode", "debug mode", "fix mode", "troubleshoot mode"],
     "security": ["security mode", "secure mode", "alarm mode", "security system"],
@@ -14,7 +17,7 @@ MODE_KEYWORDS = {
 }
 
 # Mode query keywords
-MODE_QUERY_KEYWORDS = ["what mode", "which mode", "current mode"]
+MODE_QUERY_KEYWORDS = ["what mode", "which mode", "current mode", "what workspace", "which workspace", "current workspace"]
 
 # Mode suggestion patterns - triggers for automatic mode suggestions
 # These are context clues that indicate a query would benefit from a specific mode
