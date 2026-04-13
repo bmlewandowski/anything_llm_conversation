@@ -305,6 +305,14 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
             return self.async_abort(reason="entry_not_loaded")
 
         if user_input is not None:
+            for _slug_key in (
+                CONF_WORKSPACE_SLUG,
+                CONF_THREAD_SLUG,
+                CONF_FAILOVER_WORKSPACE_SLUG,
+                CONF_FAILOVER_THREAD_SLUG,
+            ):
+                if user_input.get(_slug_key):
+                    user_input[_slug_key] = _sanitize_slug(user_input[_slug_key])
             if self._is_new:
                 title = user_input.get(CONF_NAME, DEFAULT_NAME)
                 if CONF_NAME in user_input:
@@ -360,22 +368,22 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 CONF_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
                 default=options.get(CONF_WORKSPACE_SLUG, entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)),
-            ): vol.All(str, _sanitize_slug),
+            ): str,
             vol.Optional(
                 CONF_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_THREAD_SLUG)},
                 default=options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG),
-            ): vol.All(str, _sanitize_slug),
+            ): str,
             vol.Optional(
                 CONF_FAILOVER_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG)},
                 default=options.get(CONF_FAILOVER_WORKSPACE_SLUG, entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)),
-            ): vol.All(str, _sanitize_slug),
+            ): str,
             vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_THREAD_SLUG)},
                 default=options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG),
-            ): vol.All(str, _sanitize_slug),
+            ): str,
             vol.Optional(
                 CONF_ENABLE_AGENT_PREFIX,
                 description={"suggested_value": options.get(CONF_ENABLE_AGENT_PREFIX)},
