@@ -106,7 +106,9 @@ _RESPONSE_MODE_HINTS: dict[str, str] = {
 }
 # H2: also strip { and } to prevent Jinja2 expression injection from entity names
 # sourced from third-party integrations (Z-Wave, MQTT, cloud bridges).
-_RE_UNSAFE_PROMPT = re.compile(r'[\r\n\t`|{}]')
+# Commas are stripped because entity data is embedded in CSV context blocks;
+# an unescaped comma in a device name would shift columns for the LLM.
+_RE_UNSAFE_PROMPT = re.compile(r'[\r\n\t`|{},]')
 
 
 def _sanitize_prompt_value(value: str) -> str:
@@ -570,8 +572,16 @@ class AnythingLLMAgentEntity(
             new_workspace = re.sub(r'[^a-z0-9_-]', '-', new_workspace)
             # Collapse repeated hyphens and strip leading/trailing hyphens
             new_workspace = re.sub(r'-+', '-', new_workspace).strip('-')
-            # Normalize common spoken aliases to canonical workspace slugs
-            new_workspace = WORKSPACE_SLUG_ALIASES.get(new_workspace, new_workspace)
+            # Normalize common spoken aliases to canonical workspace slugs.
+            # If exact match fails (e.g. "the-analysis" from "switch to the analysis workspace"),
+            # scan for any known alias as a substring, longest first to avoid partial matches.
+            if new_workspace in WORKSPACE_SLUG_ALIASES:
+                new_workspace = WORKSPACE_SLUG_ALIASES[new_workspace]
+            else:
+                for alias in sorted(WORKSPACE_SLUG_ALIASES, key=len, reverse=True):
+                    if alias in new_workspace:
+                        new_workspace = WORKSPACE_SLUG_ALIASES[alias]
+                        break
             new_workspace_lower = new_workspace
             
             # Handle "default" keyword to return to primary workspace
@@ -738,17 +748,18 @@ class AnythingLLMAgentEntity(
             else:
                 raw_prompt = get_mode_prompt(mode_key)
         
+        # Render the Jinja2 template first, then append any mode-suggestion hint
+        # AFTER rendering so display names can't accidentally contain Jinja2 syntax.
+        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key, workspace_slug)
+        
         # Detect if query patterns suggest a different workspace might be helpful
         suggestion_context = workspace_slug or mode_key
         suggested_modes = detect_suggested_modes(user_input.text, suggestion_context)
         if suggested_modes:
-            # Add a hint to the prompt (AI still decides whether to suggest)
-            mode_names = ", ".join([get_mode_name(m) for m in suggested_modes[:2]])  # Top 2 matches
-            mode_hint = f"\n\n[SYSTEM HINT: User query patterns suggest {mode_names} might be relevant for this question. Consider offering to switch workspace if appropriate.]"
-            raw_prompt = raw_prompt + mode_hint
+            mode_names = ", ".join([get_mode_name(m) for m in suggested_modes[:2]])
+            prompt = prompt + f"\n\n[SYSTEM HINT: User query patterns suggest {mode_names} might be relevant for this question. Consider offering to switch workspace if appropriate.]"
             _LOGGER.debug("Pattern match detected - suggesting modes: %s", mode_names)
         
-        prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input, mode_key, workspace_slug)
         return {"role": "system", "content": prompt}, apply_tts_cleaning
 
     def _async_generate_prompt(
@@ -806,7 +817,7 @@ class AnythingLLMAgentEntity(
             raw_aliases = entity.aliases if entity and entity.aliases else []
             exposed_entities.append(
                 {
-                    "entity_id": entity_id,
+                    "entity_id": _sanitize_prompt_value(entity_id),
                     "name": _sanitize_prompt_value(state.name),
                     "state": _sanitize_prompt_value(state.state),
                     "aliases": [_sanitize_prompt_value(a) for a in raw_aliases],

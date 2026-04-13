@@ -133,7 +133,7 @@ MODE_SUGGESTION_PATTERNS = {
 
 # Minimum confidence threshold for mode suggestions
 # How many pattern matches needed before suggesting a mode
-MODE_SUGGESTION_THRESHOLD = 1  # Suggest if at least 1 pattern matches
+MODE_SUGGESTION_THRESHOLD = 2  # Require at least 2 pattern matches to reduce false positives
 
 # Issue 18: compile each mode's pattern list into a single regex so detect_suggested_modes
 # scans the input text once per mode instead of doing N individual substring checks.

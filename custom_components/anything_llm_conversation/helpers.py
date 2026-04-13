@@ -353,8 +353,13 @@ class AnythingLLMClient:
             if msg.get("role") == "system":
                 system_prompt = msg.get("content")
                 break
+
+        # Guard: never send an empty or system-only message to the API.
+        if not messages or messages[-1].get("role") != "user":
+            raise HomeAssistantError("No valid user message to send to AnythingLLM")
+
         payload = {
-            "message": messages[-1]["content"] if messages else "",
+            "message": messages[-1]["content"],
             "mode": "chat",
         }
         # The 'prompt' override is only supported on workspace-level endpoints.

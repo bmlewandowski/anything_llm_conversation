@@ -70,6 +70,15 @@ from .helpers import get_anythingllm_client
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _sanitize_slug(value: str) -> str:
+    """Sanitize a workspace or thread slug for safe URL interpolation."""
+    if not value:
+        return value
+    slug = re.sub(r'[^a-z0-9_-]', '-', value.lower().strip())
+    slug = re.sub(r'-+', '-', slug).strip('-')
+    return slug
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_NAME, default="AnythingLLM"): str,
@@ -351,22 +360,22 @@ class AnythingLLMSubentryFlowHandler(ConfigSubentryFlow):
                 CONF_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_WORKSPACE_SLUG)},
                 default=options.get(CONF_WORKSPACE_SLUG, entry.data.get(CONF_WORKSPACE_SLUG, DEFAULT_WORKSPACE_SLUG)),
-            ): str,
+            ): vol.All(str, _sanitize_slug),
             vol.Optional(
                 CONF_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_THREAD_SLUG)},
                 default=options.get(CONF_THREAD_SLUG, DEFAULT_THREAD_SLUG),
-            ): str,
+            ): vol.All(str, _sanitize_slug),
             vol.Optional(
                 CONF_FAILOVER_WORKSPACE_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_WORKSPACE_SLUG)},
                 default=options.get(CONF_FAILOVER_WORKSPACE_SLUG, entry.data.get(CONF_FAILOVER_WORKSPACE_SLUG, DEFAULT_FAILOVER_WORKSPACE_SLUG)),
-            ): str,
+            ): vol.All(str, _sanitize_slug),
             vol.Optional(
                 CONF_FAILOVER_THREAD_SLUG,
                 description={"suggested_value": options.get(CONF_FAILOVER_THREAD_SLUG)},
                 default=options.get(CONF_FAILOVER_THREAD_SLUG, DEFAULT_FAILOVER_THREAD_SLUG),
-            ): str,
+            ): vol.All(str, _sanitize_slug),
             vol.Optional(
                 CONF_ENABLE_AGENT_PREFIX,
                 description={"suggested_value": options.get(CONF_ENABLE_AGENT_PREFIX)},
