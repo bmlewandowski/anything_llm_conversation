@@ -13,9 +13,8 @@ AnythingLLM Conversation allows you to use AnythingLLM as the conversation agent
 ## Key Features
 
 - **Voice Assistant Integration**: Seamlessly integrates with Home Assistant's voice assistant pipeline
-- **Voice-Triggered Mode Switching**: Switch between specialized AI modes (Analysis, Research, Code Review, Troubleshooting, Guest) using voice commands
-- **Automatic Mode Suggestions**: AI intelligently suggests switching to relevant modes based on your query patterns ("Would you like me to switch to Analysis Mode for a detailed energy breakdown?")
-- **Endpoint Failover**: Automatically fails over to a backup AnythingLLM server if the primary endpoint becomes unavailable
+- **Voice-Triggered Workspace Switching**: Switch between AnythingLLM workspaces (Analysis, Research, Investigation, Security, Adventure, Visual) using voice commands
+- **Automatic Mode Suggestions**: AI intelligently suggests switching to relevant workspaces based on your query patterns ("Would you like me to switch to Analysis Mode for a detailed energy breakdown?")
 - **Workspace-Based Context**: Uses AnythingLLM workspace and threads to ensure proper context for your queries
 - **RAG-Powered Responses**: Utilizes AnythingLLM workspaces to provide responses based on your custom knowledge base
 - **Enable Agents**: Utilizes AnythingLLM workspaces to use agents to perform web searches, scrape websites, connect to SQL, etc.
@@ -37,12 +36,12 @@ This integration connects to AnythingLLM via its API endpoint and uses workspace
 
 Customize your AI assistant's behavior for different use cases by simply saying the mode name. Available modes:
 
-- **Default Mode** - Standard smart home management
-- **Analysis Mode** - Data analysis and pattern identification
-- **Research Mode** - In-depth explanations and comparisons
-- **Code Review Mode** - YAML and automation script review
-- **Troubleshooting Mode** - Step-by-step device diagnostics
-- **Guest Mode** - Simplified, privacy-conscious interface for visitors
+- **Default / JARVIS** - Standard smart home management
+- **Analysis** - Data analysis, energy usage, and pattern identification
+- **Research** - In-depth explanations, comparisons, and recommendations
+- **Investigation** - Code review, troubleshooting, and diagnostics (also triggered by "code review mode", "troubleshooting mode", "debug mode")
+- **Security** - Security system awareness and device access control
+- **Adventure / Visual** - Specialized creative or visual workspaces
 
 **Examples:**
 
@@ -66,7 +65,7 @@ Assistant: [Provides detailed analytical response in Analysis Mode]
 
 > **Note**: Replying with "yes", "sure", "ok", "go ahead", "absolutely", or similar to a mode suggestion is handled locally — no extra API call is made.
 
-For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](docs/MODE_SWITCHING.md) *(coming soon)*.
+For complete documentation including all trigger phrases, use cases, and customization options, see [MODE_SWITCHING.md](MODE_SWITCHING.md).
 
 ### Dynamic Workspace Switching
 
@@ -168,11 +167,6 @@ During setup, you'll be asked to provide:
 - **Workspace Slug**: The slug of the AnythingLLM workspace to use (e.g., "home-assistant-workspace")
 
 
-### Failover Configuration (Optional)
-- **Failover API Key**: API key for the backup AnythingLLM server
-- **Failover Base URL**: Base URL of the backup AnythingLLM instance
-- **Failover Workspace Slug**: Workspace slug to use on the failover server (defaults to primary if not specified)
-
 
 ## Configuration Options
 
@@ -185,9 +179,7 @@ After adding the integration, you can configure each conversation agent with the
 - **Temperature**: Controls randomness in responses (0.0 = deterministic, 1.0 = creative)
 - **Attach Username**: Prepends the Home Assistant username to each message
 - **Workspace Slug**: The workspace slug to use (defaults to the main integration's workspace) - workspace name lowercased and seperated by dashes
-- **Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the primary endpoint - right click on thread and select copy link, paste into notepad and get thread slug from url
-- **Failover Workspace Slug**: Optional workspace slug for the failover endpoint (defaults to integration's failover workspace if not set)
-- **Failover Thread Slug**: Optional AnythingLLM thread slug to use a specific conversation thread on the failover endpoint
+- **Thread Slug**: Optional AnythingLLM thread slug for a specific conversation thread - right-click a thread in AnythingLLM and copy the link, then extract the slug from the URL
 - **Enable Agent Prefix**: Enables automatic `@agent` prefix for web searches and scraping
 - **Agent Keywords**: Comma-separated keywords that trigger the `@agent` prefix (e.g., "search, lookup, find online")
 
@@ -220,25 +212,17 @@ By default (when thread slugs are left blank), AnythingLLM uses the workspace's 
 
 1. Go to Settings > Devices & Services > AnythingLLM Conversation
 2. Click **Configure** on your conversation agent
-3. Enter a **Thread Slug** for the primary endpoint (e.g., "home-assistant-main", "kitchen-assistant", etc.)
-4. Optionally, enter a **Failover Thread Slug** for the failover endpoint if you want to use a different thread when failing over
+3. Enter a **Thread Slug** (e.g., "home-assistant-main", "kitchen-assistant", etc.)
 
 
 **How thread slugs work:**
 - **Blank/Empty** (default): Uses the workspace's default thread via `/v1/workspace/{slug}/chat`
-- **Custom Slug** (e.g., "kitchen-thread"): Uses specific thread via `/v1/workspace/{slug}/thread/{thread-slug}/chat`
-- Thread slugs are identifiers that correspond to threads you create in AnythingLLM
-- You can find thread slugs in your AnythingLLM instance (check the thread URL or use browser DevTools to inspect API calls)
-- When you specify a thread slug, the integration routes messages to that specific conversation thread
+- **Custom Slug** (e.g., "kitchen-thread"): Uses a specific thread via `/v1/workspace/{slug}/thread/{thread-slug}/chat`
+- Thread slugs correspond to threads you create in AnythingLLM
+- You can find the thread slug in the AnythingLLM thread URL (right-click → Copy Link, then extract the slug)
+- When you specify a thread slug, the integration routes all messages to that specific conversation thread
 
-
-
-**Endpoint-specific thread behavior:**
-- **Primary endpoint**: Uses the **Thread Slug** value (if set), or the workspace's default thread if left blank.
-- **Failover endpoint**: Uses the **Failover Thread Slug** value (if set), or the failover workspace's default thread if left blank. If no failover workspace is configured, it will use the failover server's own default workspace and will not set a thread slug (plain `/chat` call).
-- Each endpoint maintains its own separate thread context—thread slugs are NOT shared between primary and failover.
-
-You can change or clear thread slugs at any time to switch between threads or return to the default workspace thread. If failover workspace/thread is not set, failover will always use its own default workspace and no thread.
+You can change or clear the thread slug at any time to switch threads or return to the workspace default.
 
 
 ### Adding Home Assistant Automation Custom Skill in AnythingLLM
@@ -275,12 +259,10 @@ To change API keys, base URLs, or workspace slugs:
 2. Click the **three dots menu** on the integration card
 3. Select **Reconfigure**
 4. Update any of the following:
-  - Primary API Key
-  - Primary Base URL
-  - Primary Workspace Slug
-  - Failover API Key
-  - Failover Base URL
-  - Failover Workspace Slug
+  - API Key
+  - Base URL
+  - Workspace Slug
+  - Health Check and Timeout settings
 
 
 The integration will validate the connection and reload automatically after saving changes.
@@ -301,10 +283,9 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
   - Attach Username
   - Workspace Slug
   - Thread Slug
-  - Failover Workspace Slug
-  - Failover Thread Slug
   - Enable Agent Prefix
   - Agent Keywords
+  - Enable Health Check
 
 
 ## Setting Up Voice Assistant
@@ -336,22 +317,18 @@ To change per-agent settings (prompt, tokens, temperature, etc.):
 4. Example: "Home Assistant Knowledge" becomes "home-assistant-knowledge"
 
 
-## Failover Functionality
+## Endpoint Health Monitoring
 
 
-The integration includes built-in background endpoint monitoring and automatic failover:
+The integration includes a non-blocking background health monitor:
 
 
 1. A background task checks the primary endpoint every **30 seconds** and caches the result
-2. If the primary endpoint is unavailable, the next conversation automatically routes to the failover endpoint
-3. The failover request includes automatic retry logic (up to 2 attempts with exponential backoff)
-4. If the failover fails, it tries the primary endpoint one more time before giving up
-5. When the primary endpoint comes back online, the background monitor detects it and switches back automatically
-6. All endpoint switches are logged for monitoring
-7. Voice requests never block waiting for a health check — the cached result is used immediately
-
-
-This ensures uninterrupted voice assistant functionality even if one AnythingLLM server goes offline.
+2. Voice requests never block waiting for a health check — the cached result is used immediately
+3. If the endpoint is unavailable, requests fail fast with a clear error rather than timing out
+4. Failed API calls are retried up to 2 times with exponential backoff before surfacing an error
+5. When the endpoint comes back online, the background monitor detects it automatically
+6. All health state changes are logged for monitoring
 
 
 **Note**: The integration starts the background health monitor as soon as it loads, so voice commands are never delayed by health checks.
@@ -390,9 +367,8 @@ When disabled, the integration skips background health monitoring and always use
 
 
 **Keep health checks enabled if:**
-- You have a failover endpoint configured
-- You need automatic endpoint switching for high availability
-- You want the connectivity binary sensor to stay up to date
+- You want the connectivity binary sensor to stay current
+- You want fast-fail behavior when the server is temporarily unavailable
 
 
 ### Configurable Timeouts
@@ -409,7 +385,7 @@ To adjust these:
 4. Click **Submit**
 
 **Use Cases:**
-- Lower the health check timeout for faster failover detection
+- Lower the health check timeout to detect server downtime faster
 - Increase chat completion timeout for longer, more complex responses
 - Tune timeouts to match your server/network performance
 
@@ -446,13 +422,6 @@ The integration uses the following AnythingLLM API endpoints:
 - Ensure your AnythingLLM workspace has relevant knowledge for home automation
 
 
-### Failover Not Working
-
-
-- Verify both endpoints are properly configured
-- Check that both API keys are valid
-- Monitor Home Assistant logs to see failover attempts
-
 
 ## Differences from Extended OpenAI Conversation
 
@@ -461,7 +430,7 @@ This integration is specifically designed for AnythingLLM and includes:
 
 
 - Native AnythingLLM API support (not OpenAI-compatible)
-- Endpoint health monitoring with automatic failover to backup server
+- Background endpoint health monitoring with connectivity binary sensor
 - Retry logic with exponential backoff for improved reliability
 - Workspace-based RAG integration
 - Simplified configuration focused on AnythingLLM features
@@ -475,7 +444,7 @@ Function calling and advanced automation features from the original Extended Ope
 ## Response Cleaning for TTS
 
 
-The integration automatically cleans LLM responses before sending them to text-to-speech. You can modify the `_clean_response_for_tts()` method in `conversation.py` to enable different cleaning options:
+The integration automatically cleans LLM responses before sending them to text-to-speech. You can modify `clean_response_for_tts()` in `response_processor.py` to enable different cleaning options:
 
 
 ### Basic Options (enabled by default)

@@ -68,6 +68,8 @@ Senior Home Assistant expert that performs systematic code reviews with security
 - "review mode"
 - "code mode"
 
+> **Workspace routing**: "Code review mode", "review mode", and "code mode" are aliases that switch to the **Investigation** workspace. The behavior below reflects the suggested system prompt for that workspace (see [WORKSPACE_PROMPTS.md](WORKSPACE_PROMPTS.md)).
+
 **What it does:**
 - Reviews YAML syntax for errors and proper indentation
 - Verifies entity IDs exist and are correctly referenced
@@ -99,6 +101,8 @@ Technical support specialist that follows a systematic 5-step diagnostic hierarc
 - "fix mode"
 - "troubleshoot mode"
 
+> **Workspace routing**: "Troubleshooting mode", "debug mode", "fix mode", and "troubleshoot mode" are aliases that switch to the **Investigation** workspace. The behavior below reflects the suggested system prompt for that workspace.
+
 **What it does:**
 Follows this diagnostic hierarchy:
 
@@ -129,6 +133,8 @@ Simplified, privacy-conscious mode with strict access restrictions and enforced 
 - "guest mode"
 - "visitor mode"
 - "simple mode"
+
+> **Workspace routing**: "Guest mode", "visitor mode", and "simple mode" return to the **Default** workspace. There is no dedicated Guest workspace with enforced restrictions — the behavior below requires configuring your default workspace appropriately in AnythingLLM.
 
 **What guests CAN do:**
 - Control lights (on/off, brightness, color) in common areas
@@ -269,20 +275,22 @@ Or use variations:
 
 ## Technical Details
 
-### Mode Detection
+### Workspace Detection
 - Keyword-based detection from voice transcription
 - Case-insensitive matching
-- Works with natural language (e.g., "switch to analysis mode" or just "analysis mode")
+- Works with natural language (e.g., "switch to analysis mode", "analysis mode", or "switch to analysis workspace")
+- Phrases like "code review mode" and "troubleshooting mode" are normalized to workspace slugs (e.g., `investigation`)
 
-### Mode Persistence
-- Modes persist per conversation ID
-- Switching modes clears conversation history for clean context
-- Each conversation can have its own mode
+### Workspace Persistence
+- Active workspace persists per conversation ID
+- State is saved to `.storage` and restored automatically after restarts or integration reloads
+- Switching workspaces clears local conversation history for clean context
+- Each conversation can independently track its own workspace
 
 ### System Prompts
-- Each mode has a specialized system prompt
-- Prompts include mode-awareness for seamless switching
-- Device information is available in all modes
+- **Entity-aware workspaces** (JARVIS/default, Analysis, Investigation, Security): the integration injects a live device list and current timestamp into every request via the AnythingLLM `prompt` field
+- **Non-entity workspaces** (Research, Adventure, Visual): no `prompt` override is sent — AnythingLLM uses the workspace's own system prompt natively
+- Device information is available only in entity-aware workspaces
 
 ## Example Scenarios
 
@@ -322,8 +330,11 @@ Or use variations:
 ```
 
 ### Guest Access Workflow
+
+> **Note**: "Guest mode" routes back to the **Default** workspace — there is no dedicated restricted workspace.
+
 ```
-1. "Guest mode"
+1. "Guest mode"          (returns to Default workspace)
 2. "Turn on the living room lights"
 3. "Make it warmer"
 4. "Play some music"
@@ -332,11 +343,17 @@ Or use variations:
 
 ## Customization
 
-The mode system uses a modular design with a base persona template and mode-specific behavioral overlays. This ensures consistency across all modes while allowing specialized behaviors.
+### Workspace-Based Customization (Recommended)
 
-### Using a Custom Base Persona
+The primary way to customize behavior is to edit the **System Prompt** for each workspace directly in the AnythingLLM UI. See [WORKSPACE_PROMPTS.md](WORKSPACE_PROMPTS.md) for the suggested prompts.
 
-You can customize the base persona while still benefiting from mode switching. Your custom prompt will be used as the foundation, with mode-specific behaviors layered on top.
+For entity-aware workspaces (JARVIS, Analysis, Investigation, Security), the integration injects a live device list and current timestamp into every request — the rest of the persona is owned by AnythingLLM.
+
+### Legacy: Custom Base Persona (Fallback Path)
+
+The following applies when using an **unknown or unconfigured workspace** (one not listed in `modes.py`). In that case the integration falls back to building a prompt locally from the Prompt Template in your agent options, with mode-specific behavior overlays applied on top.
+
+You can customize this fallback prompt while still benefiting from keyword-based mode suggestions. Your custom prompt will be used as the foundation, with mode-specific behaviors layered on top.
 
 **To use a custom base persona:**
 
