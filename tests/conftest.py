@@ -145,7 +145,7 @@ def _mock_check_workspace_switch(self, user_text: str, conversation_id: str, lan
     ):
         return object()
 
-    # Switch command
+    # Switch command: "!workspace <name>"
     if text_lower.startswith("!workspace "):
         new_workspace = user_text.split(" ", 1)[1].strip()
         new_workspace = new_workspace.replace(' ', '-').lower()
@@ -158,6 +158,32 @@ def _mock_check_workspace_switch(self, user_text: str, conversation_id: str, lan
         if conversation_id in self.history:
             del self.history[conversation_id]
 
+        self.conversation_workspaces[conversation_id] = new_workspace
+        return object()
+
+    # Phrase patterns: "switch to <name> workspace/mode", "use <name> workspace/mode", etc.
+    new_workspace = None
+    if text_lower.startswith("switch to ") and " workspace" in text_lower:
+        new_workspace = text_lower.replace("switch to ", "").replace(" workspace", "").strip()
+    elif text_lower.startswith("use ") and " workspace" in text_lower:
+        new_workspace = text_lower.replace("use ", "").replace(" workspace", "").strip()
+    elif text_lower.startswith("switch to ") and " mode" in text_lower:
+        new_workspace = text_lower.replace("switch to ", "").replace(" mode", "").strip()
+    elif text_lower.startswith("use ") and " mode" in text_lower:
+        new_workspace = text_lower.replace("use ", "").replace(" mode", "").strip()
+    elif text_lower.startswith("change workspace to "):
+        new_workspace = text_lower.replace("change workspace to ", "").strip()
+    elif text_lower.startswith("switch workspace to "):
+        new_workspace = text_lower.replace("switch workspace to ", "").strip()
+
+    if new_workspace:
+        new_workspace = new_workspace.replace(' ', '-').lower()
+        if not hasattr(self, "conversation_workspaces") or self.conversation_workspaces is None:
+            self.conversation_workspaces = {}
+        if not hasattr(self, "history") or self.history is None:
+            self.history = {}
+        if conversation_id in self.history:
+            del self.history[conversation_id]
         self.conversation_workspaces[conversation_id] = new_workspace
         return object()
 

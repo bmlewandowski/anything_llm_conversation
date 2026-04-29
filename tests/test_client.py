@@ -1,399 +1,306 @@
 #!/usr/bin/env python3
-"""Tests for AnythingLLM client functionality (mock-based)."""
+"""Tests for AnythingLLM client functionality (mock-based, no failover)."""
 
 import asyncio
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from typing import Optional
 
 
 class MockHTTPResponse:
     """Mock HTTP response."""
-    
+
     def __init__(self, status_code: int, json_data: Optional[dict] = None):
         self.status_code = status_code
         self._json_data = json_data or {}
-    
-    async def json(self):
+        self.is_success = status_code < 400
+
+    def json(self):
         return self._json_data
 
 
 class MockAnythingLLMClient:
-    """Mock AnythingLLM client for testing."""
-    
+    """Simplified mock matching the post-failover-removal AnythingLLMClient."""
+
     def __init__(
         self,
         api_key: str,
         base_url: str,
         workspace_slug: str,
-        failover_api_key: Optional[str] = None,
-        failover_base_url: Optional[str] = None,
-        failover_workspace_slug: Optional[str] = None,
+        enable_health_check: bool = True,
+        health_check_timeout: float = 3.0,
+        chat_timeout: float = 60.0,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.workspace_slug = workspace_slug
-        self.failover_api_key = failover_api_key
-        self.failover_base_url = failover_base_url.rstrip("/") if failover_base_url else None
-        self.failover_workspace_slug = failover_workspace_slug
-        self.using_failover = False
+        self.enable_health_check = enable_health_check
+        self.health_check_timeout = health_check_timeout
+        self.chat_timeout = chat_timeout
+        self._primary_healthy: bool | None = None
         self.http_client = MagicMock()
-    
+
     async def check_endpoint_health(self, base_url: str, api_key: str) -> bool:
-        """Check if AnythingLLM endpoint is active."""
+        """Check if AnythingLLM endpoint is reachable."""
         try:
             health_url = f"{base_url}/v1/system"
             response = await self.http_client.get(
                 health_url,
                 headers={"Authorization": f"Bearer {api_key}"},
-                timeout=3.0,
+                timeout=self.health_check_timeout,
             )
             return response.status_code in (200, 401, 403)
         except Exception:
             return False
-    
-    async def get_active_endpoint(self) -> tuple[str, str, str]:
-        """Get active endpoint, failing over if necessary."""
-        primary_healthy = await self.check_endpoint_health(self.base_url, self.api_key)
-        
-        if primary_healthy:
-            if self.using_failover:
-                self.using_failover = False
+
+    def get_active_endpoint(self) -> tuple[str, str, str]:
+        """Return the primary endpoint; raise if known-unhealthy."""
+        if not self.enable_health_check or self._primary_healthy is None:
             return self.base_url, self.api_key, self.workspace_slug
-        
-        if self.failover_base_url and self.failover_api_key:
-            if not self.using_failover:
-                self.using_failover = True
-            return (
-                self.failover_base_url,
-                self.failover_api_key,
-                self.failover_workspace_slug or self.workspace_slug
-            )
-        else:
+        if not self._primary_healthy:
             raise Exception("AnythingLLM endpoint is unavailable")
-    
+        return self.base_url, self.api_key, self.workspace_slug
+
     async def chat_completion(
         self,
         messages: list[dict],
         temperature: float = 0.5,
         max_tokens: int = 150,
-        thread_slug: Optional[str] = None,
         workspace_slug: Optional[str] = None,
+        thread_slug: Optional[str] = None,
     ) -> dict:
         """Send chat completion request to AnythingLLM."""
-        base_url, api_key, active_workspace = await self.get_active_endpoint()
-        # Use override if provided (primary path)
-        if workspace_slug:
-            active_workspace = workspace_slug
-        
+        base_url, api_key, active_workspace = self.get_active_endpoint()
+        final_workspace = workspace_slug or active_workspace or self.workspace_slug
+
         if thread_slug:
-            chat_url = f"{base_url}/v1/workspace/{active_workspace}/thread/{thread_slug}/chat"
+            chat_url = f"{base_url}/v1/workspace/{final_workspace}/thread/{thread_slug}/chat"
         else:
-            chat_url = f"{base_url}/v1/workspace/{active_workspace}/chat"
-        
+            chat_url = f"{base_url}/v1/workspace/{final_workspace}/chat"
+
         payload = {
             "message": messages[-1]["content"] if messages else "",
             "mode": "chat",
         }
-        
+
         response = await self.http_client.post(
             chat_url,
             headers={"Authorization": f"Bearer {api_key}"},
             json=payload,
-            timeout=60.0,
+            timeout=self.chat_timeout,
         )
-        
-        if response.status_code != 200:
+
+        if not response.is_success:
             raise Exception(f"Chat request failed with status {response.status_code}")
-        
-        return await response.json()
 
-    @staticmethod
-    async def test_workspace_override_primary():
-        """Test that workspace override is used in chat URL on primary endpoint."""
-        client = MockAnythingLLMClient(
-            api_key="primary-key",
-            base_url="http://primary:3001/api",
-            workspace_slug="primary-workspace",
-            failover_api_key="failover-key",
-            failover_base_url="http://failover:3001/api",
-            failover_workspace_slug="failover-workspace"
-        )
-        # Primary healthy
-        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
-        client.http_client.post = AsyncMock(return_value=MockHTTPResponse(
-            200,
-            {"textResponse": "Hello!", "type": "chat"}
-        ))
-
-        messages = [{"role": "user", "content": "Hi"}]
-        response = await client.chat_completion(messages, workspace_slug="override-workspace")
-        assert response["textResponse"] == "Hello!"
-        # Verify URL uses override workspace
-        call_args = client.http_client.post.call_args
-        assert "/v1/workspace/override-workspace/" in call_args[0][0], "Should use override workspace in URL"
+        return response.json()
 
 
 class TestAnythingLLMClient:
     """Test AnythingLLM client functionality."""
-    
+
     @staticmethod
-    async def test_health_check_success():
-        """Test successful health check."""
-        client = MockAnythingLLMClient(
-            api_key="test-key",
-            base_url="http://localhost:3001/api",
-            workspace_slug="test-workspace"
-        )
-        
-        # Mock successful response
-        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
-        
-        result = await client.check_endpoint_health("http://localhost:3001/api", "test-key")
-        assert result == True, "Health check should succeed with status 200"
-    
-    @staticmethod
-    async def test_health_check_auth_errors():
-        """Test health check with auth errors (still considered healthy)."""
-        client = MockAnythingLLMClient(
-            api_key="test-key",
-            base_url="http://localhost:3001/api",
-            workspace_slug="test-workspace"
-        )
-        
-        # 401 and 403 mean endpoint is up but auth issue
-        for status_code in [401, 403]:
-            client.http_client.get = AsyncMock(return_value=MockHTTPResponse(status_code))
+    def test_health_check_success():
+        """Health check returns True for HTTP 200."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="test-workspace",
+            )
+            client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
             result = await client.check_endpoint_health("http://localhost:3001/api", "test-key")
-            assert result == True, f"Health check should succeed with status {status_code}"
-    
+            assert result is True
+        asyncio.run(run())
+
     @staticmethod
-    async def test_health_check_failure():
-        """Test health check failure."""
-        client = MockAnythingLLMClient(
-            api_key="test-key",
-            base_url="http://localhost:3001/api",
-            workspace_slug="test-workspace"
-        )
-        
-        # Mock connection error
-        client.http_client.get = AsyncMock(side_effect=Exception("Connection refused"))
-        
-        result = await client.check_endpoint_health("http://localhost:3001/api", "test-key")
-        assert result == False, "Health check should fail on exception"
-    
+    def test_health_check_auth_errors_still_healthy():
+        """HTTP 401 and 403 mean the server is up — considered healthy."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="test-workspace",
+            )
+            for status_code in (401, 403):
+                client.http_client.get = AsyncMock(return_value=MockHTTPResponse(status_code))
+                result = await client.check_endpoint_health("http://localhost:3001/api", "test-key")
+                assert result is True, f"Should be healthy for status {status_code}"
+        asyncio.run(run())
+
     @staticmethod
-    async def test_primary_endpoint_selection():
-        """Test that primary endpoint is used when healthy."""
-        client = MockAnythingLLMClient(
-            api_key="primary-key",
-            base_url="http://primary:3001/api",
-            workspace_slug="primary-workspace",
-            failover_api_key="failover-key",
-            failover_base_url="http://failover:3001/api",
-            failover_workspace_slug="failover-workspace"
-        )
-        
-        # Mock primary as healthy
-        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
-        
-        url, key, workspace = await client.get_active_endpoint()
-        assert url == "http://primary:3001/api", "Should use primary URL"
-        assert key == "primary-key", "Should use primary key"
-        assert workspace == "primary-workspace", "Should use primary workspace"
-        assert client.using_failover == False, "Should not be using failover"
-    
+    def test_health_check_failure_on_exception():
+        """Connection error → health check returns False."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="test-workspace",
+            )
+            client.http_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+            result = await client.check_endpoint_health("http://localhost:3001/api", "test-key")
+            assert result is False
+        asyncio.run(run())
+
     @staticmethod
-    async def test_failover_when_primary_down():
-        """Test failover to secondary endpoint when primary is down."""
+    def test_primary_endpoint_returned_when_healthy():
+        """get_active_endpoint returns primary when _primary_healthy is True."""
         client = MockAnythingLLMClient(
             api_key="primary-key",
             base_url="http://primary:3001/api",
             workspace_slug="primary-workspace",
-            failover_api_key="failover-key",
-            failover_base_url="http://failover:3001/api",
-            failover_workspace_slug="failover-workspace"
         )
-        
-        # Mock primary as down, failover as up
-        async def mock_health_check(url, headers, timeout):
-            if "primary" in url:
-                raise Exception("Connection refused")
-            return MockHTTPResponse(200)
-        
-        client.http_client.get = mock_health_check
-        
-        url, key, workspace = await client.get_active_endpoint()
-        assert url == "http://failover:3001/api", "Should use failover URL"
-        assert key == "failover-key", "Should use failover key"
-        assert workspace == "failover-workspace", "Should use failover workspace"
-        assert client.using_failover == True, "Should be using failover"
-    
+        client._primary_healthy = True
+        url, key, workspace = client.get_active_endpoint()
+        assert url == "http://primary:3001/api"
+        assert key == "primary-key"
+        assert workspace == "primary-workspace"
+
     @staticmethod
-    async def test_failover_workspace_default():
-        """Test that failover uses primary workspace when not specified."""
+    def test_get_active_endpoint_raises_when_unhealthy():
+        """get_active_endpoint raises when primary is known unavailable."""
         client = MockAnythingLLMClient(
             api_key="primary-key",
             base_url="http://primary:3001/api",
             workspace_slug="primary-workspace",
-            failover_api_key="failover-key",
-            failover_base_url="http://failover:3001/api",
-            failover_workspace_slug=None  # Not specified
         )
-        
-        # Mock primary as down
-        async def mock_health_check(url, headers, timeout):
-            if "primary" in url:
-                raise Exception("Connection refused")
-            return MockHTTPResponse(200)
-        
-        client.http_client.get = mock_health_check
-        
-        url, key, workspace = await client.get_active_endpoint()
-        assert workspace == "primary-workspace", "Should use primary workspace as default"
-    
-    @staticmethod
-    async def test_no_failover_configured():
-        """Test error when primary down and no failover configured."""
-        client = MockAnythingLLMClient(
-            api_key="primary-key",
-            base_url="http://primary:3001/api",
-            workspace_slug="primary-workspace",
-            failover_api_key=None,
-            failover_base_url=None
-        )
-        
-        # Mock primary as down
-        client.http_client.get = AsyncMock(side_effect=Exception("Connection refused"))
-        
+        client._primary_healthy = False
         try:
-            await client.get_active_endpoint()
-            assert False, "Should have raised exception"
+            client.get_active_endpoint()
+            assert False, "Should have raised"
         except Exception as e:
-            assert "unavailable" in str(e).lower(), "Should indicate endpoint unavailable"
-    
+            assert "unavailable" in str(e).lower()
+
     @staticmethod
-    async def test_return_to_primary_after_recovery():
-        """Test that client returns to primary when it recovers."""
+    def test_get_active_endpoint_optimistic_before_first_check():
+        """Before first health check (_primary_healthy is None), optimistically use primary."""
         client = MockAnythingLLMClient(
             api_key="primary-key",
             base_url="http://primary:3001/api",
             workspace_slug="primary-workspace",
-            failover_api_key="failover-key",
-            failover_base_url="http://failover:3001/api"
         )
-        
-        # First call - primary down, use failover
-        call_count = 0
-        
-        async def mock_health_check(url, headers, timeout):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1 and "primary" in url:
-                raise Exception("Primary down")
-            return MockHTTPResponse(200)
-        
-        client.http_client.get = mock_health_check
-        
-        # First request should use failover
-        url1, _, _ = await client.get_active_endpoint()
-        assert "failover" in url1, "First request should use failover"
-        assert client.using_failover == True
-        
-        # Second request should return to primary
-        url2, _, _ = await client.get_active_endpoint()
-        assert "primary" in url2, "Should return to primary when recovered"
-        assert client.using_failover == False
-    
+        assert client._primary_healthy is None
+        url, key, workspace = client.get_active_endpoint()
+        assert url == "http://primary:3001/api"
+
     @staticmethod
-    async def test_chat_without_thread():
-        """Test chat completion without thread slug."""
+    def test_health_check_disabled_always_returns_primary():
+        """When health checks disabled, always return primary regardless of state."""
         client = MockAnythingLLMClient(
-            api_key="test-key",
-            base_url="http://localhost:3001/api",
-            workspace_slug="test-workspace"
+            api_key="primary-key",
+            base_url="http://primary:3001/api",
+            workspace_slug="primary-workspace",
+            enable_health_check=False,
         )
-        
-        # Mock healthy endpoint and successful chat
-        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
-        client.http_client.post = AsyncMock(return_value=MockHTTPResponse(
-            200,
-            {"textResponse": "Hello!", "type": "chat"}
-        ))
-        
-        messages = [{"role": "user", "content": "Hi"}]
-        response = await client.chat_completion(messages)
-        
-        assert response["textResponse"] == "Hello!"
-        # Verify URL doesn't include thread
-        call_args = client.http_client.post.call_args
-        assert "/thread/" not in call_args[0][0], "Should not include thread in URL"
-    
+        client._primary_healthy = False  # Even if marked unhealthy, disabled = always serve
+        url, key, workspace = client.get_active_endpoint()
+        assert url == "http://primary:3001/api"
+
     @staticmethod
-    async def test_chat_with_thread():
-        """Test chat completion with thread slug."""
-        client = MockAnythingLLMClient(
-            api_key="test-key",
-            base_url="http://localhost:3001/api",
-            workspace_slug="test-workspace"
-        )
-        
-        # Mock healthy endpoint and successful chat
-        client.http_client.get = AsyncMock(return_value=MockHTTPResponse(200))
-        client.http_client.post = AsyncMock(return_value=MockHTTPResponse(
-            200,
-            {"textResponse": "Hello!", "type": "chat"}
-        ))
-        
-        messages = [{"role": "user", "content": "Hi"}]
-        response = await client.chat_completion(messages, thread_slug="my-thread")
-        
-        assert response["textResponse"] == "Hello!"
-        # Verify URL includes thread
-        call_args = client.http_client.post.call_args
-        assert "/thread/my-thread/chat" in call_args[0][0], "Should include thread in URL"
+    def test_chat_without_thread():
+        """Chat URL should not include /thread/ when no thread slug given."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="test-workspace",
+            )
+            client._primary_healthy = True
+            client.http_client.post = AsyncMock(
+                return_value=MockHTTPResponse(200, {"textResponse": "Hello!", "type": "chat"})
+            )
+            messages = [{"role": "user", "content": "Hi"}]
+            response = await client.chat_completion(messages)
+            assert response["textResponse"] == "Hello!"
+            call_url = client.http_client.post.call_args[0][0]
+            assert "/thread/" not in call_url
+        asyncio.run(run())
+
+    @staticmethod
+    def test_chat_with_thread():
+        """Chat URL should include /thread/<slug>/chat when thread slug given."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="test-workspace",
+            )
+            client._primary_healthy = True
+            client.http_client.post = AsyncMock(
+                return_value=MockHTTPResponse(200, {"textResponse": "Hello!", "type": "chat"})
+            )
+            messages = [{"role": "user", "content": "Hi"}]
+            response = await client.chat_completion(messages, thread_slug="my-thread")
+            assert response["textResponse"] == "Hello!"
+            call_url = client.http_client.post.call_args[0][0]
+            assert "/thread/my-thread/chat" in call_url
+        asyncio.run(run())
+
+    @staticmethod
+    def test_workspace_override_in_chat_url():
+        """Workspace override is reflected in the chat URL."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="default-workspace",
+            )
+            client._primary_healthy = True
+            client.http_client.post = AsyncMock(
+                return_value=MockHTTPResponse(200, {"textResponse": "OK", "type": "chat"})
+            )
+            messages = [{"role": "user", "content": "Hi"}]
+            await client.chat_completion(messages, workspace_slug="override-workspace")
+            call_url = client.http_client.post.call_args[0][0]
+            assert "/v1/workspace/override-workspace/" in call_url
+        asyncio.run(run())
+
+    @staticmethod
+    def test_chat_thread_and_workspace_override():
+        """Both workspace and thread overrides combine correctly in the URL."""
+        async def run():
+            client = MockAnythingLLMClient(
+                api_key="test-key",
+                base_url="http://localhost:3001/api",
+                workspace_slug="default-workspace",
+            )
+            client._primary_healthy = True
+            client.http_client.post = AsyncMock(
+                return_value=MockHTTPResponse(200, {"textResponse": "OK", "type": "chat"})
+            )
+            messages = [{"role": "user", "content": "Hi"}]
+            await client.chat_completion(
+                messages, workspace_slug="analysis", thread_slug="session-123"
+            )
+            call_url = client.http_client.post.call_args[0][0]
+            assert "/v1/workspace/analysis/thread/session-123/chat" in call_url
+        asyncio.run(run())
 
 
 async def run_all_tests():
-    """Run all test methods."""
-    test_class = TestAnythingLLMClient()
-    test_methods = [
-        method for method in dir(test_class)
-        if method.startswith('test_') and callable(getattr(test_class, method))
-    ]
-    
-    total = len(test_methods)
-    passed = 0
-    failed = 0
-    
-    print("Testing AnythingLLM Client (Mock-based)")
-    print("=" * 70)
-    
-    for method_name in test_methods:
+    """Run all test methods (used when invoked directly, not via pytest)."""
+    test_instance = TestAnythingLLMClient()
+    methods = [m for m in dir(test_instance) if m.startswith("test_")]
+    passed = failed = 0
+    print("Testing AnythingLLM Client (simplified, no failover)")
+    print("=" * 60)
+    for name in methods:
         try:
-            method = getattr(test_class, method_name)
-            await method()
-            print(f"✓ {method_name}")
+            getattr(test_instance, name)()
+            print(f"  PASS  {name}")
             passed += 1
         except AssertionError as e:
-            print(f"✗ {method_name}")
-            print(f"  {str(e)}")
+            print(f"  FAIL  {name}: {e}")
             failed += 1
         except Exception as e:
-            print(f"✗ {method_name} (unexpected error)")
-            print(f"  {type(e).__name__}: {str(e)}")
+            print(f"  ERROR {name}: {type(e).__name__}: {e}")
             failed += 1
-    
-    print("=" * 70)
-    print(f"Results: {passed}/{total} passed, {failed}/{total} failed")
-    
-    if failed == 0:
-        print("✅ All tests passed!")
-        return 0
-    else:
-        print(f"❌ {failed} test(s) failed")
-        return 1
+    print("=" * 60)
+    print(f"{passed} passed, {failed} failed")
+    return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(run_all_tests()))
+    import sys
+    result = asyncio.run(run_all_tests())
+    sys.exit(result)
