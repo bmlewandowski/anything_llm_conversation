@@ -101,14 +101,16 @@ _RE_AFFIRMATIVE = re.compile(
     re.IGNORECASE,
 )
 
-# L5: maps the lowercase display-name fragment to its mode key, used to detect
-# when the LLM's response is asking the user to confirm a mode switch.
+# L5: maps the lowercase display-name fragment to its canonical workspace slug, used
+# to detect when the LLM's response is asking the user to confirm a mode switch.
+# Values MUST match actual AnythingLLM workspace slugs — they are stored directly in
+# conversation_workspaces and used in API URL construction without further alias lookup.
 _RESPONSE_MODE_HINTS: dict[str, str] = {
     "analysis mode": "analysis",
     "research mode": "research",
-    "code review mode": "code_review",
-    "troubleshooting mode": "troubleshooting",
-    "guest mode": "guest",
+    "code review mode": "investigation",
+    "troubleshooting mode": "investigation",
+    "guest mode": "default",
     "security mode": "security",
     "default mode": "default",
 }
@@ -161,9 +163,6 @@ class AnythingLLMAgentEntity(
         self.subentry = subentry
         self.history: dict[str, list[dict]] = {}
 
-        # Mode management - track mode per conversation
-        self.conversation_modes: dict[str, str] = {}  # conversation_id -> mode_key
-
         # Workspace management - track workspace per conversation
         self.conversation_workspaces: dict[str, str] = {}  # conversation_id -> workspace_slug
         self.conversation_threads: dict[str, str | None] = {}  # conversation_id -> thread_slug override
@@ -172,13 +171,11 @@ class AnythingLLMAgentEntity(
         # doesn't silently reset every user's mode/workspace.
         _saved = hass.data.get(DOMAIN, {}).get(f"state_{subentry.subentry_id}", {})
         if _saved:
-            self.conversation_modes.update(_saved.get("modes", {}))
             self.conversation_workspaces.update(_saved.get("workspaces", {}))
             self.conversation_threads.update(_saved.get("threads", {}))
             _LOGGER.debug(
-                "Restored conversation state for subentry %s: modes=%s workspaces=%s",
+                "Restored conversation state for subentry %s: workspaces=%s",
                 subentry.subentry_id,
-                self.conversation_modes,
                 self.conversation_workspaces,
             )
 
@@ -198,6 +195,10 @@ class AnythingLLMAgentEntity(
         # L5: pending mode suggestion per conversation (LLM asked; user hasn't confirmed yet).
         # Value is (workspace_slug, monotonic_timestamp) so stale suggestions are discarded.
         self._pending_mode_suggestions: dict[str, tuple[str, float]] = {}
+
+        # Fix 3: track the pending Store write task so we can cancel it before
+        # scheduling a new one, preventing unbounded task pile-up on rapid switches.
+        self._save_state_task: asyncio.Task | None = None
 
         self._attr_device_info = dr.DeviceInfo(
             identifiers={(DOMAIN, subentry.subentry_id)},
@@ -232,7 +233,6 @@ class AnythingLLMAgentEntity(
             return
         data = await self._store.async_load()
         if data:
-            self.conversation_modes.update(data.get("modes", {}))
             self.conversation_workspaces.update(data.get("workspaces", {}))
             self.conversation_threads.update(data.get("threads", {}))
             _LOGGER.debug(
@@ -520,15 +520,15 @@ class AnythingLLMAgentEntity(
         
         # Pattern 2: "switch to <name> workspace"
         elif text_lower.startswith("switch to ") and " workspace" in text_lower:
-            # Extract workspace name between "switch to" and "workspace"
-            parts = text_lower.replace("switch to ", "").replace(" workspace", "").strip()
-            new_workspace = parts
+            m = re.match(r"switch to (.+?) workspace$", text_lower)
+            if m:
+                new_workspace = m.group(1).strip()
         
         # Pattern 3: "use <name> workspace"
         elif text_lower.startswith("use ") and " workspace" in text_lower:
-            # Extract workspace name between "use" and "workspace"
-            parts = text_lower.replace("use ", "").replace(" workspace", "").strip()
-            new_workspace = parts
+            m = re.match(r"use (.+?) workspace$", text_lower)
+            if m:
+                new_workspace = m.group(1).strip()
         
         # Pattern 4: "change workspace to <name>"
         elif text_lower.startswith("change workspace to "):
@@ -540,13 +540,15 @@ class AnythingLLMAgentEntity(
 
         # Pattern 6: "switch to <name> mode"
         elif text_lower.startswith("switch to ") and " mode" in text_lower:
-            parts = text_lower.replace("switch to ", "").replace(" mode", "").strip()
-            new_workspace = parts
+            m = re.match(r"switch to (.+?) mode$", text_lower)
+            if m:
+                new_workspace = m.group(1).strip()
 
         # Pattern 7: "use <name> mode"
         elif text_lower.startswith("use ") and " mode" in text_lower:
-            parts = text_lower.replace("use ", "").replace(" mode", "").strip()
-            new_workspace = parts
+            m = re.match(r"use (.+?) mode$", text_lower)
+            if m:
+                new_workspace = m.group(1).strip()
 
         # Pattern 8: "change mode to <name>"
         elif text_lower.startswith("change mode to "):
@@ -683,14 +685,18 @@ class AnythingLLMAgentEntity(
         hass.data write is synchronous and survives integration reloads within
         the same HA process. The async Store write persists the state to disk so
         it survives full HA restarts.
+
+        Any pending Store write task is cancelled before a new one is created so
+        that rapid workspace switches do not pile up concurrent disk writes.
         """
         state = {
-            "modes": dict(self.conversation_modes),
             "workspaces": dict(self.conversation_workspaces),
             "threads": dict(self.conversation_threads),
         }
         self.hass.data.setdefault(DOMAIN, {})[f"state_{self._attr_unique_id}"] = state
-        self.hass.async_create_task(
+        if self._save_state_task and not self._save_state_task.done():
+            self._save_state_task.cancel()
+        self._save_state_task = self.hass.async_create_task(
             self._store.async_save(state),
             name=f"anythingllm_save_state_{self._attr_unique_id}",
         )

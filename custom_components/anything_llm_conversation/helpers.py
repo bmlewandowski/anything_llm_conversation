@@ -312,7 +312,8 @@ class AnythingLLMClient:
 
         # Workspace override (e.g. from per-conversation workspace switch).
         final_workspace_slug = workspace_slug or active_workspace_slug or self.workspace_slug
-        active_thread_slug = thread_slug
+        # Sanitize thread slug before URL interpolation to prevent path traversal.
+        active_thread_slug = sanitize_slug(thread_slug) if thread_slug else thread_slug
 
         _LOGGER.info(
             "Using primary endpoint - workspace: %s (override: %s, default: %s), thread: %s",
